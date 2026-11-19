@@ -1,0 +1,62 @@
+name: DummyPay UI tests
+
+on:
+  pull_request:            # every PR -> fast smoke suite
+  push:
+    branches: [main]       # merge to main -> full regression
+  schedule:
+    - cron: "0 2 * * *"    # nightly -> full regression incl. slow/data-changing tests
+  workflow_dispatch:
+    inputs:
+      marker:
+        description: "pytest -m expression (e.g. smoke, regression, nightly)"
+        default: "regression"
+
+concurrency:
+  # Tests share two real accounts on the live site -> never run two suites at once.
+  group: dummypay-tests
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE_URL: https://dummypay.vercel.app
+      USER1_EMAIL: ${{ secrets.USER1_EMAIL }}
+      USER1_PASSWORD: ${{ secrets.USER1_PASSWORD }}
+      USER2_EMAIL: ${{ secrets.USER2_EMAIL }}
+      USER2_PASSWORD: ${{ secrets.USER2_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Choose which tests to run
+        id: select
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then echo "marker=smoke" >> "$GITHUB_OUTPUT";
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "marker=${{ inputs.marker }}" >> "$GITHUB_OUTPUT";
+          elif [ "${{ github.event_name }}" = "schedule" ]; then echo "marker=regression or nightly" >> "$GITHUB_OUTPUT";
+          else echo "marker=regression and not nightly" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Run tests
+        run: python -m pytest -m "${{ steps.select.outputs.marker }}"
+
+      - name: Upload HTML report, screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            reports/
+            test-results/
+          retention-days: 14
