@@ -37,6 +37,10 @@ class WalletsPage(BasePage):
     def preview_result(self) -> Locator:
         return self.preview.get_by_test_id("conversion-result")
 
+    def owned_wallets_count(self) -> int:
+        self.wallet_cards.first.wait_for()
+        return self.wallet_cards.count()
+    
     def open_add_wallet_dialog(self):
         self.add_wallet_button.click()
         self.dialog.get_by_label("Currency").click()
