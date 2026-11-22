@@ -2,8 +2,6 @@ import pytest
 import time
 from playwright.sync_api import expect
 
-from tests.conftest import settings_page
-from tests.conftest import settings_page
 from utilities import config
 
 pytestmark = pytest.mark.regression

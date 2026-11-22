@@ -5,7 +5,6 @@ user's Bearer token, so the client can do exactly what that user can do in the a
 """
 import os
 import ssl
-import uuid
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -57,17 +56,6 @@ class DummyPayApi:
         self.email = None
 
     # ---- auth ----------------------------------------------------------------
-    def sign_up(self, email: str, password: str, display_name: str, currency: str) -> dict:
-        r = self.http.post(f"{self.base_url}/auth/v1/signup", json={
-            "email": email,
-            "password": password,
-            "data": {"display_name": display_name, "preferred_currency": currency},
-        }, timeout=30)
-        session = self._check(r)
-        if session and session.get("access_token"):
-            self._use_session(session)
-        return session
-
     def sign_in(self, email: str, password: str) -> dict:
         r = self.http.post(f"{self.base_url}/auth/v1/token", params={"grant_type": "password"},
                            json={"email": email, "password": password}, timeout=30)
@@ -116,6 +104,16 @@ class DummyPayApi:
     def preview(self, amount_minor: int, from_ccy: str, to_ccy: str) -> dict:
         return self.rpc("preview_conversion", p_amount_minor=amount_minor, p_from=from_ccy, p_to=to_ccy)[0]
 
+    def cross_rates(self, base: str) -> dict[str, float]:
+        """{to_currency: rate} for every pair that starts at `base`."""
+        rows = self.select("fx_cross_rates", select="to_currency,rate", from_currency=f"eq.{base}")
+        return {r["to_currency"]: r["rate"] for r in rows}
+
+    def latest_transaction(self) -> dict | None:
+        """The newest transaction of this user (sent, received or welcome grant)."""
+        rows = self.rpc("list_my_transactions", p_limit=1)
+        return rows[0] if rows else None
+
     # ---- test-data cleanup ---------------------------------------------------
     def delete_bank_accounts(self, bank_name: str):
         """Delete every bank account of this user with this bank name."""
@@ -128,6 +126,3 @@ class DummyPayApi:
                      params={"last_four_digits": f"in.({','.join(last4_values)})"})
         assert r.status_code in (200, 204), r.text
 
-
-def new_test_email() -> str:
-    return f"qa-{uuid.uuid4().hex[:10]}@test.dummypay.dev"

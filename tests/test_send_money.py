@@ -5,6 +5,7 @@ from playwright.sync_api import expect
 
 from pages.history_page import HistoryPage
 from utilities.data import unknown_email
+from utilities.flows import send_money
 
 pytestmark = pytest.mark.regression
 
@@ -40,15 +41,27 @@ class TestSendMoneyPositive:
         expect(send_page.summary).to_be_visible()
 
     @pytest.mark.nightly
-    def test_full_transfer_completes_and_appears_in_history(self, user1_page, user2_email):
-        from utilities.flows import send_money
+    def test_full_transfer_moves_money_and_appears_in_history(self, user1_page, api_user1, api_user2, user2_email):
+        """End to end: balances of both users change by the quoted amounts, and the new
+        transaction is the newest one in the history (checked by its ID, not by row count,
+        because the history page shows only 20 rows per page)."""
+        last_before = api_user1.latest_transaction()
+        sender_before, recipient_before = api_user1.wallets(), api_user2.wallets()
+
+        send_money(user1_page, user2_email, "1")
+
+        txn = api_user1.latest_transaction()
+        assert txn["id"] != (last_before or {}).get("id"), "a new transaction must be recorded"
+        assert txn["direction"] == "sent" and txn["recipient_email"] == user2_email
+        assert txn["sending_amount_minor"] == 100  # "1" in the sender's currency
+
+        send_ccy, recv_ccy = txn["sending_currency"], txn["receiving_currency"]
+        assert api_user1.wallets()[send_ccy] == sender_before[send_ccy] - txn["sending_amount_minor"]
+        assert api_user2.wallets()[recv_ccy] == recipient_before.get(recv_ccy, 0) + txn["receiving_amount_minor"]
 
         history = HistoryPage(user1_page).open()
-        history.rows.first.wait_for()
-        before = history.rows.count()
-        send_money(user1_page, user2_email, "1")
-        history.open()
-        expect(history.rows).not_to_have_count(before)
+        history.rows.first.click()
+        expect(history.detail).to_contain_text(txn["id"])
 
 
 class TestSendMoneyNegative:

@@ -83,6 +83,21 @@ class WalletsPage(BasePage):
         expect(self.total_balance).to_contain_text(re.compile(r"\d\.\d{2}"))  # skeleton gone
         return to_minor(self.total_balance.inner_text())
 
+    # ---- exchange rates card -----------------------------------------------------
+    @property
+    def rates_card(self) -> Locator:
+        return self.page.get_by_test_id("rates-card")
+
+    def shown_rates(self) -> dict[str, float]:
+        """{to_currency: rate} as displayed, e.g. 'rate-ILS-USD' -> {'USD': 0.2739}."""
+        rows = self.rates_card.locator('[data-testid^="rate-"]')
+        rows.first.wait_for()
+        rates = {}
+        for row in rows.all():
+            to = row.get_attribute("data-testid").rsplit("-", 1)[1]
+            rates[to] = float(row.inner_text().replace(",", ""))
+        return rates
+
     # ---- conversion preview ------------------------------------------------------
     @property
     def preview(self) -> Locator:
