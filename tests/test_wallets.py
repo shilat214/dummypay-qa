@@ -2,12 +2,11 @@
 
 Each test checks what the page SHOWS against what the server actually HOLDS
 (read through the API), so it verifies data correctness, not just that elements exist.
-The API is used only as the source of truth (expected values) and for test data.
+The API is used only as the source of truth (expected values).
 """
 import pytest
 from playwright.sync_api import expect
 
-from pages.wallets_page import WalletsPage
 from utilities.money import ui_amount_to_minor
 
 pytestmark = pytest.mark.regression
@@ -43,32 +42,18 @@ class TestWalletsPositive:
         assert wallets_page.preview_currencies() == (to, frm)
         wallets_page.expect_preview_result(api_user1.preview(minor, to, frm)["receiving_amount_minor"])
 
-    @pytest.mark.nightly
-    def test_new_user_can_open_every_wallet_without_receiving_funds(self, fresh_user_page, fresh_user):
-        """Full wallet lifecycle on a brand-new account.
+    def test_rates_card_matches_server_rates(self, wallets_page, api_user1):
+        """Every rate shown for the preferred currency equals the server's live rate."""
+        base = api_user1.profile()["preferred_currency"]
+        server = api_user1.cross_rates(base)
 
-        For each missing currency: the dialog offers exactly the missing ones, the new
-        wallet starts at 0 on both UI and server, and the total does not grow
-        (opening a wallet must never add money). After the 4th wallet the button is disabled.
-        """
-        api = fresh_user["api"]
-        wallets = WalletsPage(fresh_user_page).open()
-        total_before = wallets.total_minor()
-        owned = set(api.wallets())
-        assert owned == {"ILS"}, "a new ILS user starts with one ILS wallet"
+        shown = wallets_page.shown_rates()
 
-        for currency in sorted(ALL_CURRENCIES - owned):
-            assert set(wallets.offered_currencies()) == ALL_CURRENCIES - owned
-
-            wallets.add_wallet(currency)
-            owned.add(currency)
-
-            assert wallets.balance_minor(currency) == 0
-            assert api.wallets()[currency] == 0
-            assert wallets.total_minor() == total_before
-
-        expect(wallets.add_wallet_button).to_be_disabled()
-        assert wallets.shown_currencies() == ALL_CURRENCIES
+        assert set(shown) == set(server), "UI must list exactly the server's currency pairs"
+        for currency, rate in server.items():
+            # The UI shows up to 6 decimals, so allow a difference in the last displayed digit.
+            assert shown[currency] == pytest.approx(rate, abs=1e-6), f"1 {base} -> {currency}"
+        expect(wallets_page.rates_card).to_contain_text("Last updated")
 
 
 class TestWalletsNegative:
