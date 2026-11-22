@@ -41,7 +41,9 @@ class BasePage:
 
     def sign_out(self):
         self.page.get_by_role("button", name="Account menu").first.click()
-        self.page.get_by_role("menuitem", name="Sign out").click()
+        sign_out = self.page.get_by_role("menuitem", name="Sign out")
+        expect(sign_out).to_be_visible()
+        sign_out.press("Enter")  # keyboard: works even if the menu opens near the screen edge
 
     def expect_loaded(self):
         expect(self.heading).to_be_visible()
