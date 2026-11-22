@@ -51,14 +51,16 @@ def user2_state(browser, base_url):
 
 @pytest.fixture
 def user1_page(browser, base_url, user1_state):
-    context = browser.new_context(base_url=base_url, storage_state=user1_state, viewport=VIEWPORT)    page = context.new_page()
+    context = browser.new_context(base_url=base_url, storage_state=user1_state, viewport=VIEWPORT) 
+    page = context.new_page()
     yield page
     context.close()
 
 
 @pytest.fixture
 def user2_page(browser, base_url, user2_state):
-    context = browser.new_context(base_url=base_url, storage_state=user2_state, viewport=VIEWPORT)    page = context.new_page()
+    context = browser.new_context(base_url=base_url, storage_state=user2_state, viewport=VIEWPORT)  
+    page = context.new_page()
     yield page
     context.close()
 
