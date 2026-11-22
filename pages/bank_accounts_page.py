@@ -51,13 +51,3 @@ class BankAccountsPage(BasePage):
         item = self.item_by_bank(bank).first
         item.get_by_role("button", name=re.compile(f"Remove {re.escape(bank)} account")).click()
         self.page.get_by_role("alertdialog").get_by_role("button", name="Remove").click()
-
-    def remove_all_for_bank(self, bank: str):
-        """Test-data cleanup."""
-        while self.item_by_bank(bank).count() > 0:
-            before = self.items.count()
-            self.remove_account(bank)
-            self.page.wait_for_function(
-                "([sel, n]) => document.querySelectorAll(sel).length < n",
-                arg=['[data-testid="bank-account-item"]', before],
-            )

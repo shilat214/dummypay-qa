@@ -1,4 +1,8 @@
+"""Thin client for the DummyPay REST API (Supabase), based on the official API docs.
 
+Every request carries the public `apikey` header; after sign-in it also carries the
+user's Bearer token, so the client can do exactly what that user can do in the app.
+"""
 import os
 import ssl
 import uuid
@@ -111,6 +115,18 @@ class DummyPayApi:
 
     def preview(self, amount_minor: int, from_ccy: str, to_ccy: str) -> dict:
         return self.rpc("preview_conversion", p_amount_minor=amount_minor, p_from=from_ccy, p_to=to_ccy)[0]
+
+    # ---- test-data cleanup ---------------------------------------------------
+    def delete_bank_accounts(self, bank_name: str):
+        """Delete every bank account of this user with this bank name."""
+        r = self.raw("DELETE", "/rest/v1/bank_accounts", params={"bank_name": f"eq.{bank_name}"})
+        assert r.status_code in (200, 204), r.text
+
+    def delete_cards(self, last4_values: list[str]):
+        """Delete every card of this user whose last four digits are listed."""
+        r = self.raw("DELETE", "/rest/v1/payment_cards",
+                     params={"last_four_digits": f"in.({','.join(last4_values)})"})
+        assert r.status_code in (200, 204), r.text
 
 
 def new_test_email() -> str:

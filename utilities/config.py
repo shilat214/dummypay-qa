@@ -16,6 +16,8 @@ USER2_PASSWORD = os.getenv("USER2_PASSWORD", "")
 # API (Supabase). The anon key is public by design (it is in the web app's JS bundle),
 # but it is still read from the environment so it can be rotated without code changes.
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://vtimmqlnyoyxiwczfdwf.supabase.co")
-ANON_KEY = os.getenv("DUMMYPAY_ANON_KEY", "")
+ANON_KEY = (os.getenv("DUMMYPAY_ANON_KEY")
+            or os.getenv("SUPABASE_ANON_KEY")
+            or "sb_publishable_ePbpDoNhaalSXl31_Rq6OA_TcfDZVAS")  # public key given in the assignment
 
 AUTH_DIR = ROOT / ".auth"

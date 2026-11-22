@@ -20,6 +20,12 @@ from utilities.data import BANK_NAME, TEST_CARD_LAST4
 
 
 VIEWPORT = {"width": 1920, "height": 1080}
+
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    """Same large viewport for the plain `page` fixture (login / sign-out tests)."""
+    return {**browser_context_args, "viewport": VIEWPORT}
 # --------------------------------------------------------------------------- #
 # Authentication: log in ONCE per user per session through the UI, store the
 # session (storage_state) and reuse it. DummyPay rate-limits sign-ins, so tests
@@ -32,7 +38,7 @@ def _login_and_store(browser, base_url, email, password, name):
         pytest.skip(f"Credentials for {name} are not configured (.env / CI secrets).")
     config.AUTH_DIR.mkdir(exist_ok=True)
     path = config.AUTH_DIR / f"{name}.json"
-    context = browser.new_context(base_url=base_url, viewport=VIEWPORT)  
+    context = browser.new_context(base_url=base_url, viewport=VIEWPORT)
     page = context.new_page()
     LoginPage(page).open().login(email, password)
     DashboardPage(page).heading.wait_for(timeout=20_000)
@@ -53,7 +59,7 @@ def user2_state(browser, base_url):
 
 @pytest.fixture
 def user1_page(browser, base_url, user1_state):
-    context = browser.new_context(base_url=base_url, storage_state=user1_state, viewport=VIEWPORT) 
+    context = browser.new_context(base_url=base_url, storage_state=user1_state, viewport=VIEWPORT)
     page = context.new_page()
     yield page
     context.close()
@@ -61,7 +67,7 @@ def user1_page(browser, base_url, user1_state):
 
 @pytest.fixture
 def user2_page(browser, base_url, user2_state):
-    context = browser.new_context(base_url=base_url, storage_state=user2_state, viewport=VIEWPORT)  
+    context = browser.new_context(base_url=base_url, storage_state=user2_state, viewport=VIEWPORT)
     page = context.new_page()
     yield page
     context.close()
@@ -102,14 +108,6 @@ def api_user1():
 @pytest.fixture(scope="session")
 def api_user2():
     return _api_for(config.USER2_EMAIL, config.USER2_PASSWORD, "user2")
-
-
-@pytest.fixture(scope="session")
-def anon_api():
-    """Client with only the public apikey (no user token)."""
-    if not config.ANON_KEY:
-        pytest.skip("DUMMYPAY_ANON_KEY is not configured (.env / CI secrets).")
-    return DummyPayApi()
 
 
 @pytest.fixture
@@ -176,27 +174,19 @@ def history_page(user1_page):
 
 
 @pytest.fixture
-def cards_page(user1_page):
-    """Cards page with test cards cleaned up before and after the test."""
-    page = CardsPage(user1_page).open()
-    page.heading.wait_for()
-    page.remove_all_with_last4(TEST_CARD_LAST4)
-    yield page
-    page.open()
-    page.heading.wait_for()
-    page.remove_all_with_last4(TEST_CARD_LAST4)
+def cards_page(user1_page, api_user1):
+    """Cards page; test cards are deleted through the API before and after the test."""
+    api_user1.delete_cards(TEST_CARD_LAST4)
+    yield CardsPage(user1_page).open()
+    api_user1.delete_cards(TEST_CARD_LAST4)
 
 
 @pytest.fixture
-def bank_page(user1_page):
-    """Bank accounts page with the test bank's accounts cleaned up before and after."""
-    page = BankAccountsPage(user1_page).open()
-    page.heading.wait_for()
-    page.remove_all_for_bank(BANK_NAME)
-    yield page
-    page.open()
-    page.heading.wait_for()
-    page.remove_all_for_bank(BANK_NAME)
+def bank_page(user1_page, api_user1):
+    """Bank accounts page; the test bank's accounts are deleted through the API before and after."""
+    api_user1.delete_bank_accounts(BANK_NAME)
+    yield BankAccountsPage(user1_page).open()
+    api_user1.delete_bank_accounts(BANK_NAME)
 
 
 @pytest.fixture

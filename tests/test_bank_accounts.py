@@ -11,6 +11,7 @@ HOLDER = "QA Tester"
 
 def _add_and_verify(bank_page, country, currency, identifier, expected_mask):
     bank_page.add_account(HOLDER, BANK_NAME, country, currency, identifier)
+    expect(bank_page.dialog).to_be_hidden(timeout=20_000)  # server may be slow (cold start)
     expect(bank_page.toast("Simulated bank account added.")).to_be_visible()
     item = bank_page.item_by_bank(BANK_NAME)
     expect(item).to_have_count(1)

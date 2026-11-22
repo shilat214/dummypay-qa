@@ -9,6 +9,7 @@ pytestmark = pytest.mark.regression
 
 def _add_and_verify(cards_page, card):
     cards_page.add_card(card["name"], card["number"], card["expiry"], card["cvv"])
+    expect(cards_page.dialog).to_be_hidden(timeout=20_000)  # server may be slow (cold start)
     expect(cards_page.toast("Simulated card added.")).to_be_visible()
     item = cards_page.item_by_last4(card["last4"])
     expect(item).to_have_count(1)

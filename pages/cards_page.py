@@ -52,14 +52,3 @@ class CardsPage(BasePage):
         item = self.item_by_last4(last4).first
         item.get_by_role("button", name=re.compile(f"Remove card ending in {last4}")).click()
         self.page.get_by_role("alertdialog").get_by_role("button", name="Remove").click()
-
-    def remove_all_with_last4(self, last4_values: list[str]):
-        """Test-data cleanup: remove every card whose last four digits are in the list."""
-        for last4 in last4_values:
-            while self.item_by_last4(last4).count() > 0:
-                before = self.items.count()
-                self.remove_card(last4)
-                self.page.wait_for_function(
-                    "([sel, n]) => document.querySelectorAll(sel).length < n",
-                    arg=['[data-testid="card-item"]', before],
-                )

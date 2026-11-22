@@ -1,3 +1,9 @@
+"""Wallets page - UI tests (3 positive, 3 negative).
+
+Each test checks what the page SHOWS against what the server actually HOLDS
+(read through the API), so it verifies data correctness, not just that elements exist.
+The API is used only as the source of truth (expected values) and for test data.
+"""
 import pytest
 from playwright.sync_api import expect
 
@@ -39,7 +45,12 @@ class TestWalletsPositive:
 
     @pytest.mark.nightly
     def test_new_user_can_open_every_wallet_without_receiving_funds(self, fresh_user_page, fresh_user):
+        """Full wallet lifecycle on a brand-new account.
 
+        For each missing currency: the dialog offers exactly the missing ones, the new
+        wallet starts at 0 on both UI and server, and the total does not grow
+        (opening a wallet must never add money). After the 4th wallet the button is disabled.
+        """
         api = fresh_user["api"]
         wallets = WalletsPage(fresh_user_page).open()
         total_before = wallets.total_minor()
