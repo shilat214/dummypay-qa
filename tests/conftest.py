@@ -16,6 +16,8 @@ from pages.wallets_page import WalletsPage
 from utilities import config
 from utilities.data import BANK_NAME, TEST_CARD_LAST4
 
+
+VIEWPORT = {"width": 1920, "height": 1080}
 # --------------------------------------------------------------------------- #
 # Authentication: log in ONCE per user per session through the UI, store the
 # session (storage_state) and reuse it. DummyPay rate-limits sign-ins, so tests
@@ -28,7 +30,7 @@ def _login_and_store(browser, base_url, email, password, name):
         pytest.skip(f"Credentials for {name} are not configured (.env / CI secrets).")
     config.AUTH_DIR.mkdir(exist_ok=True)
     path = config.AUTH_DIR / f"{name}.json"
-    context = browser.new_context(base_url=base_url)
+    context = browser.new_context(base_url=base_url, viewport=VIEWPORT)  
     page = context.new_page()
     LoginPage(page).open().login(email, password)
     DashboardPage(page).heading.wait_for(timeout=20_000)
@@ -49,16 +51,14 @@ def user2_state(browser, base_url):
 
 @pytest.fixture
 def user1_page(browser, base_url, user1_state):
-    context = browser.new_context(base_url=base_url, storage_state=user1_state)
-    page = context.new_page()
+    context = browser.new_context(base_url=base_url, storage_state=user1_state, viewport=VIEWPORT)    page = context.new_page()
     yield page
     context.close()
 
 
 @pytest.fixture
 def user2_page(browser, base_url, user2_state):
-    context = browser.new_context(base_url=base_url, storage_state=user2_state)
-    page = context.new_page()
+    context = browser.new_context(base_url=base_url, storage_state=user2_state, viewport=VIEWPORT)    page = context.new_page()
     yield page
     context.close()
 
