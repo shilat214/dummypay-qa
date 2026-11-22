@@ -18,8 +18,16 @@ class WalletsPage(BasePage):
         return self.page.get_by_role("dialog")
 
     @property
+    def confirm_add_button(self) -> Locator:
+        """The 'Add wallet' button inside the dialog (not the one on the page)."""
+        return self.dialog.get_by_role("button", name="Add wallet", exact=True)
+
+    @property
     def wallet_cards(self) -> Locator:
         return self.page.locator('[data-testid^="wallet-"]')
+
+    def wallet_card(self, currency: str) -> Locator:
+        return self.page.get_by_test_id(f"wallet-{currency}")
 
     @property
     def total_balance(self) -> Locator:
@@ -40,7 +48,7 @@ class WalletsPage(BasePage):
     def owned_wallets_count(self) -> int:
         self.wallet_cards.first.wait_for()
         return self.wallet_cards.count()
-    
+
     def open_add_wallet_dialog(self):
         self.add_wallet_button.click()
         self.dialog.get_by_label("Currency").click()
@@ -49,10 +57,14 @@ class WalletsPage(BasePage):
     def currency_options(self) -> Locator:
         return self.page.get_by_role("option")
 
-    def add_wallet(self, currency: str):
+    def choose_first_missing_currency(self) -> str:
+        """Open the currency list, pick the first option and return its code (e.g. 'USD')."""
         self.dialog.get_by_label("Currency").click()
-        self.page.get_by_role("option", name=re.compile(currency)).click()
-        self.dialog.get_by_role("button", name="Add wallet").click()
+        option = self.currency_options().first
+        code = re.search(r"[A-Z]{3}", option.inner_text()).group(0)
+        option.click()
+        return code
+
 
     def set_preview_amount(self, amount: str):
         self.preview_amount.fill(amount)
