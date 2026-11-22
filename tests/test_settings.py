@@ -1,4 +1,5 @@
 import pytest
+import time
 from playwright.sync_api import expect
 
 from utilities import config
@@ -17,13 +18,18 @@ class TestSettingsPositive:
         if config.USER1_EMAIL:
             expect(settings_page.profile).to_contain_text(config.USER1_EMAIL)
 
-    def test_display_name_can_be_changed_and_restored(self, settings_page):
-        original = settings_page.display_name_input.input_value()
-        try:
-            settings_page.rename("QA Renamed")
-            expect(settings_page.toast("Display name updated.")).to_be_visible()
-            expect(settings_page.profile).to_contain_text("QA Renamed")
-        finally:
+def test_display_name_can_be_changed_and_restored(self, settings_page):
+    expect(settings_page.display_name_input).not_to_have_value("")
+    original = settings_page.display_name_input.input_value()
+    new_name = f"QA {int(time.time())}"   # unique every run
+
+    try:
+        settings_page.rename(new_name)
+        expect(settings_page.toast("Display name updated.")).to_be_visible()
+        expect(settings_page.profile).to_contain_text(new_name)
+    finally:
+        # restore only if the rename was actually saved
+        if new_name in settings_page.profile.inner_text():
             settings_page.rename(original)
 
     def test_preferred_currency_card_is_shown(self, settings_page):
