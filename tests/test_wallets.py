@@ -1,80 +1,102 @@
-import re
-
 import pytest
 from playwright.sync_api import expect
 
+from pages.wallets_page import WalletsPage
+from utilities.money import ui_amount_to_minor
+
 pytestmark = pytest.mark.regression
 
-ALL_CURRENCIES = 4  # ILS, USD, EUR, GBP
+ALL_CURRENCIES = {"ILS", "USD", "EUR", "GBP"}
 
 
 class TestWalletsPositive:
     pytestmark = pytest.mark.positive
 
     @pytest.mark.smoke
-    def test_wallets_page_shows_total_and_wallet_cards(self, wallets_page):
-        wallets_page.expect_loaded()
-        expect(wallets_page.total_balance).to_be_visible()
-        expect(wallets_page.wallet_cards.first).to_be_visible()
+    def test_wallets_and_total_match_server(self, wallets_page, api_user1):
+        """Every card shows the server balance, and the total equals the server summary."""
+        server = api_user1.wallets()
+        summary = api_user1.wallet_summary()
 
-    def test_add_wallet_dialog_offers_only_missing_currencies(self, wallets_page):
-        owned = wallets_page.owned_wallets_count()
-        if owned >= ALL_CURRENCIES:
-            pytest.skip("User already owns every supported currency wallet.")
-        wallets_page.open_add_wallet_dialog()
-        expect(wallets_page.currency_options()).to_have_count(ALL_CURRENCIES - owned)
+        assert wallets_page.shown_currencies() == set(server), "UI must show exactly the user's wallets"
+        for currency, balance in server.items():
+            assert wallets_page.balance_minor(currency) == balance, f"{currency} balance differs from server"
+        assert wallets_page.total_minor() == summary["total_minor"]
+        expect(wallets_page.total_balance).to_contain_text(f"shown in {summary['preferred_currency']}")
 
-    def test_cancelling_add_wallet_does_not_create_a_wallet(self, wallets_page):
-        owned = wallets_page.owned_wallets_count()
-        if owned >= ALL_CURRENCIES:
-            pytest.skip("Add wallet is disabled when every currency wallet exists.")
-        wallets_page.add_wallet_button.click()
-        wallets_page.dialog.get_by_role("button", name="Cancel").click()
-        expect(wallets_page.dialog).to_be_hidden()
-        expect(wallets_page.wallet_cards).to_have_count(owned)
+    @pytest.mark.parametrize("amount", ["1", "100", "1,234.56", "1000000"])
+    def test_conversion_preview_and_swap_match_server(self, wallets_page, api_user1, amount):
+        """Shown result equals the server's calculation, before and after swapping the pair."""
+        frm, to = wallets_page.preview_currencies()
+        minor = ui_amount_to_minor(amount)
 
-    def test_conversion_preview_shows_a_converted_amount(self, wallets_page):
-        wallets_page.set_preview_amount("100")
-        expect(wallets_page.preview_result).to_have_text(re.compile(r"[₪$€£]\s?[\d,]+\.\d{2}"))
+        wallets_page.set_preview_amount(amount)
+        wallets_page.expect_preview_result(api_user1.preview(minor, frm, to)["receiving_amount_minor"])
 
+        wallets_page.swap_button.click()
+        assert wallets_page.preview_currencies() == (to, frm)
+        wallets_page.expect_preview_result(api_user1.preview(minor, to, frm)["receiving_amount_minor"])
 
-    @pytest.mark.smoke
-    def test_new_wallet_is_created_with_zero_balance(self, wallets_page):
-        owned = wallets_page.owned_wallets_count()
-        if owned >= ALL_CURRENCIES:
-            pytest.skip("No missing currency wallet left to add.")
-        wallets_page.add_wallet_button.click()
-        currency = wallets_page.choose_first_missing_currency()
-        wallets_page.confirm_add_button.click()
-        expect(wallets_page.text(f"{currency} wallet added.")).to_be_visible()
-        expect(wallets_page.wallet_cards).to_have_count(owned + 1)
-        expect(wallets_page.wallet_card(currency)).to_contain_text(re.compile(r"0\.00"))
+    @pytest.mark.nightly
+    def test_new_user_can_open_every_wallet_without_receiving_funds(self, fresh_user_page, fresh_user):
+
+        api = fresh_user["api"]
+        wallets = WalletsPage(fresh_user_page).open()
+        total_before = wallets.total_minor()
+        owned = set(api.wallets())
+        assert owned == {"ILS"}, "a new ILS user starts with one ILS wallet"
+
+        for currency in sorted(ALL_CURRENCIES - owned):
+            assert set(wallets.offered_currencies()) == ALL_CURRENCIES - owned
+
+            wallets.add_wallet(currency)
+            owned.add(currency)
+
+            assert wallets.balance_minor(currency) == 0
+            assert api.wallets()[currency] == 0
+            assert wallets.total_minor() == total_before
+
+        expect(wallets.add_wallet_button).to_be_disabled()
+        assert wallets.shown_currencies() == ALL_CURRENCIES
 
 
 class TestWalletsNegative:
     pytestmark = pytest.mark.negative
 
-    def test_too_many_decimals_is_rejected(self, wallets_page):
-        wallets_page.set_preview_amount("1.234")
-        expect(wallets_page.preview.get_by_text("Use at most 2 decimal places.")).to_be_visible()
+    @pytest.mark.parametrize(
+        ("amount", "error"),
+        [
+            ("abc", "Enter a valid positive number."),
+            ("-5", "Enter a valid positive number."),
+            ("1e3", "Enter a valid positive number."),
+            ("0", "Amount must be greater than zero."),
+            ("0.00", "Amount must be greater than zero."),
+            ("1.234", "Use at most 2 decimal places."),
+        ],
+        ids=["letters", "negative", "scientific", "zero", "zero-decimals", "three-decimals"],
+    )
+    def test_invalid_preview_amount_is_rejected_client_side(self, wallets_page, amount, error):
+        """All client-side validation rules of the amount field, grouped in one test."""
+        wallets_page.set_preview_amount(amount)
 
-    def test_non_numeric_amount_is_rejected(self, wallets_page):
-        wallets_page.set_preview_amount("abc")
-        expect(wallets_page.preview.get_by_text("Enter a valid positive number.")).to_be_visible()
+        expect(wallets_page.preview.get_by_text(error)).to_be_visible()
+        expect(wallets_page.preview_amount).to_have_attribute("aria-invalid", "true")
+        wallets_page.expect_no_preview_result()
 
-    def test_zero_amount_is_rejected(self, wallets_page):
-        wallets_page.set_preview_amount("0")
-        expect(wallets_page.preview.get_by_text("Amount must be greater than zero.")).to_be_visible()
+    def test_amount_above_limit_is_rejected_by_server(self, wallets_page):
+        """1,000,000.01 passes the browser checks, so only the server can reject it."""
+        wallets_page.set_preview_amount("1000000.01")
 
-    def test_cannot_confirm_new_wallet_without_choosing_a_currency(self, wallets_page):
-        owned = wallets_page.owned_wallets_count()
-        if owned >= ALL_CURRENCIES:
-            pytest.skip("Add wallet is disabled when every currency wallet exists.")
-        wallets_page.add_wallet_button.click()
-        expect(wallets_page.confirm_add_button).to_be_disabled()
-        expect(wallets_page.wallet_cards).to_have_count(owned)
+        expect(wallets_page.preview_server_error).to_have_text("Enter an amount between 0.01 and 1,000,000.00.")
+        wallets_page.expect_no_preview_result()
 
-    def test_add_wallet_button_is_disabled_when_every_currency_exists(self, wallets_page):
-        if wallets_page.owned_wallets_count() < ALL_CURRENCIES:
-            pytest.skip("User still has a missing currency, so Add wallet is enabled.")
-        expect(wallets_page.add_wallet_button).to_be_disabled()
+    def test_add_wallet_never_offers_an_owned_currency(self, wallets_page, api_user1):
+        """The dialog offers only missing currencies; with all four owned the button is disabled."""
+        owned = set(api_user1.wallets())
+
+        if owned == ALL_CURRENCIES:
+            expect(wallets_page.add_wallet_button).to_be_disabled()
+        else:
+            offered = set(wallets_page.offered_currencies())
+            assert offered == ALL_CURRENCIES - owned
+            assert not (offered & owned)

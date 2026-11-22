@@ -1,4 +1,5 @@
 import base64
+import uuid
 
 import pytest
 
@@ -14,6 +15,7 @@ from pages.send_money_page import SendMoneyPage
 from pages.settings_page import SettingsPage
 from pages.wallets_page import WalletsPage
 from utilities import config
+from utilities.api_client import DummyPayApi, new_test_email
 from utilities.data import BANK_NAME, TEST_CARD_LAST4
 
 
@@ -75,6 +77,67 @@ def user2_email():
     if not config.USER2_EMAIL:
         pytest.skip("USER2_EMAIL is not configured.")
     return config.USER2_EMAIL
+
+
+# --------------------------------------------------------------------------- #
+# API clients (one sign-in per user per session - Supabase rate-limits sign-ins)
+# --------------------------------------------------------------------------- #
+
+
+def _api_for(email, password, name):
+    if not config.ANON_KEY:
+        pytest.skip("DUMMYPAY_ANON_KEY is not configured (.env / CI secrets).")
+    if not email or not password:
+        pytest.skip(f"Credentials for {name} are not configured (.env / CI secrets).")
+    api = DummyPayApi()
+    api.sign_in(email, password)
+    return api
+
+
+@pytest.fixture(scope="session")
+def api_user1():
+    return _api_for(config.USER1_EMAIL, config.USER1_PASSWORD, "user1")
+
+
+@pytest.fixture(scope="session")
+def api_user2():
+    return _api_for(config.USER2_EMAIL, config.USER2_PASSWORD, "user2")
+
+
+@pytest.fixture(scope="session")
+def anon_api():
+    """Client with only the public apikey (no user token)."""
+    if not config.ANON_KEY:
+        pytest.skip("DUMMYPAY_ANON_KEY is not configured (.env / CI secrets).")
+    return DummyPayApi()
+
+
+@pytest.fixture
+def fresh_user():
+    """A brand-new account (ILS, one wallet) registered through the API.
+
+    Used only by nightly tests: accounts are permanent and sign-ups are rate-limited,
+    so we create at most a couple per run instead of using the shared accounts.
+    """
+    if not config.ANON_KEY:
+        pytest.skip("DUMMYPAY_ANON_KEY is not configured (.env / CI secrets).")
+    email, password = new_test_email(), f"Qa-{uuid.uuid4().hex[:12]}"
+    api = DummyPayApi()
+    session = api.sign_up(email, password, "QA Fresh User", "ILS")
+    if not session or not session.get("access_token"):
+        pytest.skip("Sign-up did not return a session (email confirmation is on).")
+    return {"email": email, "password": password, "api": api}
+
+
+@pytest.fixture
+def fresh_user_page(browser, base_url, fresh_user):
+    """Browser signed in as `fresh_user` (one UI sign-in)."""
+    context = browser.new_context(base_url=base_url, viewport=VIEWPORT)
+    page = context.new_page()
+    LoginPage(page).open().login(fresh_user["email"], fresh_user["password"])
+    DashboardPage(page).heading.wait_for(timeout=20_000)
+    yield page
+    context.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -164,7 +227,7 @@ def pytest_runtest_makereport(item, call):
     if report.when != "call" or not report.failed:
         return
     html = item.config.pluginmanager.getplugin("html")
-    page = next((item.funcargs[n] for n in ("user1_page", "user2_page", "page") if n in item.funcargs), None)
+    page = next((item.funcargs[n] for n in ("user1_page", "user2_page", "fresh_user_page", "page") if n in item.funcargs), None)
     if html is None or page is None:
         return
     try:
