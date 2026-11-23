@@ -14,10 +14,19 @@ INVALID_LUHN_NUMBER = "4242424242424241"
 EXPIRED_EXPIRY = "0120"
 
 BANK_NAME = "QA Test Bank"
+BANK_HOLDER = "QA Tester"
 IBAN_GB_VALID = "GB82 WEST 1234 5698 7654 32"
 IBAN_GB_BAD_CHECKSUM = "GB82 WEST 1234 5698 7654 33"
 IBAN_GB_TOO_SHORT = "GB82 WEST 1234 5698 7654"
 IBAN_DE_VALID = "DE89 3704 0044 0532 0130 00"
+US_ACCOUNT_NUMBER = "123456789"
+
+UK_ACCOUNT = {"country": "United Kingdom", "currency": "GBP",
+              "identifier": IBAN_GB_VALID, "masked": "GB•• •••• 5432"}
+DE_ACCOUNT = {"country": "Germany", "currency": "EUR",
+              "identifier": IBAN_DE_VALID, "masked": "DE•• •••• 3000"}
+US_ACCOUNT = {"country": "United States", "currency": "USD",
+              "identifier": US_ACCOUNT_NUMBER, "masked": "•••• 6789"}
 
 
 def unknown_email() -> str:

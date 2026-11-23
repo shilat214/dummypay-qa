@@ -9,22 +9,22 @@ class BankAccountsPage(BasePage):
     path = "/bank-accounts"
     title = "Bank Accounts"
 
+    # The "Add a simulated bank account" dialog.
     @property
     def dialog(self) -> Locator:
         return self.page.get_by_role("dialog")
 
+    # All bank account cards on the page.
     @property
     def items(self) -> Locator:
         return self.page.get_by_test_id("bank-account-item")
 
-    @property
-    def empty_state(self) -> Locator:
-        return self.page.get_by_text("No bank accounts yet")
-
+    # Opens the add-account dialog.
     def open_add_dialog(self):
         self.page.get_by_role("button", name="Add bank account").click()
         return self
 
+    # Fills every field of the add-account dialog.
     def fill_account(self, holder: str, bank: str, country: str, currency: str, identifier: str):
         self.dialog.get_by_label("Account holder name").fill(holder)
         self.dialog.get_by_label("Bank name").fill(bank)
@@ -35,18 +35,30 @@ class BankAccountsPage(BasePage):
         self.dialog.get_by_label("IBAN or account number").fill(identifier)
         return self
 
+    # Clicks the dialog's "Add bank account" button.
     def submit(self):
         self.dialog.get_by_role("button", name="Add bank account").click()
         return self
 
+    # Opens the dialog, fills it and submits it.
     def add_account(self, holder: str, bank: str, country: str, currency: str, identifier: str):
         self.open_add_dialog()
         self.fill_account(holder, bank, country, currency, identifier)
         return self.submit()
 
+    # The cards of all accounts with this bank name.
     def item_by_bank(self, bank: str) -> Locator:
         return self.items.filter(has_text=bank)
 
+    # The card of one account (bank name + masked number).
+    def item_for(self, bank: str, masked: str) -> Locator:
+        return self.item_by_bank(bank).filter(has_text=masked)
+
+    # An error message shown inside the add dialog.
+    def error(self, message: str) -> Locator:
+        return self.dialog.get_by_text(message)
+
+    # Removes the first account with this bank name and confirms.
     def remove_account(self, bank: str):
         item = self.item_by_bank(bank).first
         item.get_by_role("button", name=re.compile(f"Remove {re.escape(bank)} account")).click()
