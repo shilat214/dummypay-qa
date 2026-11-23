@@ -78,6 +78,11 @@ class DummyPayApi:
         r = self.http.get(f"{self.base_url}/rest/v1/{table}", params=query, timeout=30)
         return self._check(r)
 
+    def edge(self, name: str, body: dict):
+        """POST /functions/v1/<name> (Edge Function, e.g. add-bank-account)."""
+        r = self.http.post(f"{self.base_url}/functions/v1/{name}", json=body, timeout=30)
+        return self._check(r)
+
     def raw(self, method: str, path: str, **kwargs) -> requests.Response:
         """Unchecked request, for tests that assert on the status code themselves."""
         return self.http.request(method, f"{self.base_url}{path}", timeout=30, **kwargs)
@@ -113,6 +118,17 @@ class DummyPayApi:
         """The newest transaction of this user (sent, received or welcome grant)."""
         rows = self.rpc("list_my_transactions", p_limit=1)
         return rows[0] if rows else None
+
+    def bank_accounts(self) -> list[dict]:
+        """All bank accounts of this user, exactly as the server stores them."""
+        return self.select("bank_accounts", select="*", order="created_at.desc")
+
+    def add_bank_account(self, holder: str, bank: str, country: str, currency: str, identifier: str) -> dict:
+        """Test-data setup: add a simulated bank account (country = ISO code, e.g. GB)."""
+        return self.edge("add-bank-account", {
+            "accountHolderName": holder, "bankName": bank, "country": country,
+            "currency": currency, "accountIdentifier": identifier,
+        })["account"]
 
     # ---- test-data cleanup ---------------------------------------------------
     def delete_bank_accounts(self, bank_name: str):

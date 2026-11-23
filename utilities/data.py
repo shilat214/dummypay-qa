@@ -14,10 +14,20 @@ INVALID_LUHN_NUMBER = "4242424242424241"
 EXPIRED_EXPIRY = "0120"
 
 BANK_NAME = "QA Test Bank"
+BANK_HOLDER = "QA Tester"
 IBAN_GB_VALID = "GB82 WEST 1234 5698 7654 32"
 IBAN_GB_BAD_CHECKSUM = "GB82 WEST 1234 5698 7654 33"
 IBAN_GB_TOO_SHORT = "GB82 WEST 1234 5698 7654"
 IBAN_DE_VALID = "DE89 3704 0044 0532 0130 00"
+US_ACCOUNT_NUMBER = "123456789"
+
+# Valid accounts: the country's name (as shown in the UI) and ISO code (as the API expects).
+UK_ACCOUNT = {"country": "United Kingdom", "code": "GB", "currency": "GBP",
+              "identifier": IBAN_GB_VALID, "type": "iban", "masked": "GB•• •••• 5432"}
+DE_ACCOUNT = {"country": "Germany", "code": "DE", "currency": "EUR",
+              "identifier": IBAN_DE_VALID, "type": "iban", "masked": "DE•• •••• 3000"}
+US_ACCOUNT = {"country": "United States", "code": "US", "currency": "USD",
+              "identifier": US_ACCOUNT_NUMBER, "type": "account_number", "masked": "•••• 6789"}
 
 
 def unknown_email() -> str:

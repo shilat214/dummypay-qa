@@ -17,10 +17,6 @@ class BankAccountsPage(BasePage):
     def items(self) -> Locator:
         return self.page.get_by_test_id("bank-account-item")
 
-    @property
-    def empty_state(self) -> Locator:
-        return self.page.get_by_text("No bank accounts yet")
-
     def open_add_dialog(self):
         self.page.get_by_role("button", name="Add bank account").click()
         return self
@@ -46,6 +42,14 @@ class BankAccountsPage(BasePage):
 
     def item_by_bank(self, bank: str) -> Locator:
         return self.items.filter(has_text=bank)
+
+    def item_for(self, bank: str, masked: str) -> Locator:
+        """The card of one specific account (bank name + masked number)."""
+        return self.item_by_bank(bank).filter(has_text=masked)
+
+    def error(self, message: str) -> Locator:
+        """A validation or form error shown inside the add dialog."""
+        return self.dialog.get_by_text(message)
 
     def remove_account(self, bank: str):
         item = self.item_by_bank(bank).first
