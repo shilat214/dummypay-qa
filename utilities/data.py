@@ -21,13 +21,12 @@ IBAN_GB_TOO_SHORT = "GB82 WEST 1234 5698 7654"
 IBAN_DE_VALID = "DE89 3704 0044 0532 0130 00"
 US_ACCOUNT_NUMBER = "123456789"
 
-# Valid accounts: the country's name (as shown in the UI) and ISO code (as the API expects).
-UK_ACCOUNT = {"country": "United Kingdom", "code": "GB", "currency": "GBP",
-              "identifier": IBAN_GB_VALID, "type": "iban", "masked": "GB•• •••• 5432"}
-DE_ACCOUNT = {"country": "Germany", "code": "DE", "currency": "EUR",
-              "identifier": IBAN_DE_VALID, "type": "iban", "masked": "DE•• •••• 3000"}
-US_ACCOUNT = {"country": "United States", "code": "US", "currency": "USD",
-              "identifier": US_ACCOUNT_NUMBER, "type": "account_number", "masked": "•••• 6789"}
+UK_ACCOUNT = {"country": "United Kingdom", "currency": "GBP",
+              "identifier": IBAN_GB_VALID, "masked": "GB•• •••• 5432"}
+DE_ACCOUNT = {"country": "Germany", "currency": "EUR",
+              "identifier": IBAN_DE_VALID, "masked": "DE•• •••• 3000"}
+US_ACCOUNT = {"country": "United States", "currency": "USD",
+              "identifier": US_ACCOUNT_NUMBER, "masked": "•••• 6789"}
 
 
 def unknown_email() -> str:
