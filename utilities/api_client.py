@@ -109,6 +109,10 @@ class DummyPayApi:
     def preview(self, amount_minor: int, from_ccy: str, to_ccy: str) -> dict:
         return self.rpc("preview_conversion", p_amount_minor=amount_minor, p_from=from_ccy, p_to=to_ccy)[0]
 
+    def add_wallet(self, currency: str) -> dict:
+        """Test-data setup: open a zero-balance wallet in this currency."""
+        return self.rpc("add_wallet", p_currency=currency)
+
     def cross_rates(self, base: str) -> dict[str, float]:
         """{to_currency: rate} for every pair that starts at `base`."""
         rows = self.select("fx_cross_rates", select="to_currency,rate", from_currency=f"eq.{base}")
@@ -129,6 +133,16 @@ class DummyPayApi:
             "accountHolderName": holder, "bankName": bank, "country": country,
             "currency": currency, "accountIdentifier": identifier,
         })["account"]
+
+    def cards(self) -> list[dict]:
+        """All payment cards of this user, exactly as the server stores them."""
+        return self.select("payment_cards", select="*", order="created_at.desc")
+
+    def add_card(self, name: str, number: str, expiry: str, cvv: str) -> dict:
+        """Test-data setup: add a simulated card (expiry as MM/YY)."""
+        return self.edge("add-payment-card", {
+            "cardholderName": name, "cardNumber": number, "expiry": expiry, "cvv": cvv,
+        })["card"]
 
     # ---- test-data cleanup ---------------------------------------------------
     def delete_bank_accounts(self, bank_name: str):

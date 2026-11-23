@@ -12,84 +12,47 @@ class WalletsPage(BasePage):
     path = "/wallets"
     title = "Wallets"
 
-    # ---- header / add-wallet dialog --------------------------------------------
+    # The "Add wallet" button at the top of the page.
     @property
     def add_wallet_button(self) -> Locator:
         return self.page.get_by_role("button", name="Add wallet")
 
-    @property
-    def dialog(self) -> Locator:
-        return self.page.get_by_role("dialog")
-
-    @property
-    def dialog_currency(self) -> Locator:
-        return self.dialog.get_by_label("Currency")
-
-    @property
-    def confirm_add_button(self) -> Locator:
-        """The 'Add wallet' button inside the dialog (not the one on the page)."""
-        return self.dialog.get_by_role("button", name="Add wallet", exact=True)
-
-    def currency_options(self) -> Locator:
-        return self.page.get_by_role("option")
-
-    def offered_currencies(self) -> list[str]:
-        """Open the dialog's currency list and return the codes it offers."""
-        self.add_wallet_button.click()
-        self.dialog_currency.click()
-        self.currency_options().first.wait_for()
-        codes = [CURRENCY_CODE.search(t).group(1) for t in self.currency_options().all_inner_texts()]
-        self.page.keyboard.press("Escape")  # close the list
-        self.page.keyboard.press("Escape")  # close the dialog
-        expect(self.dialog).to_be_hidden()
-        return codes
-
-    def add_wallet(self, currency: str):
-        """Full UI flow: open dialog, choose currency, confirm, wait for the new card."""
-        self.add_wallet_button.click()
-        self.dialog_currency.click()
-        self.currency_options().filter(has_text=currency).click()
-        self.confirm_add_button.click()
-        expect(self.dialog).to_be_hidden()
-        expect(self.wallet_card(currency)).to_be_visible()
-        return self
-
-    # ---- wallet cards / total ----------------------------------------------------
+    # All wallet cards (one per currency).
     @property
     def wallet_cards(self) -> Locator:
         return self.page.locator('[data-testid^="wallet-"]')
 
+    # The card of one currency's wallet.
     def wallet_card(self, currency: str) -> Locator:
         return self.page.get_by_test_id(f"wallet-{currency}")
 
-    def owned_wallets_count(self) -> int:
-        self.wallet_cards.first.wait_for()
-        return self.wallet_cards.count()
-
+    # The currencies of the wallet cards shown on the page.
     def shown_currencies(self) -> set[str]:
         self.wallet_cards.first.wait_for()
         ids = [c.get_attribute("data-testid") for c in self.wallet_cards.all()]
         return {i.removeprefix("wallet-") for i in ids}
 
+    # The balance shown on one wallet card, in minor units (₪13,000.00 -> 1300000).
     def balance_minor(self, currency: str) -> int:
-        """Balance shown on a wallet card, in minor units (₪13,000.00 -> 1300000)."""
         return to_minor(self.wallet_card(currency).inner_text())
 
+    # The total balance card.
     @property
     def total_balance(self) -> Locator:
         return self.page.get_by_test_id("total-balance")
 
+    # The total balance shown, in minor units (waits until the amount has loaded).
     def total_minor(self) -> int:
-        expect(self.total_balance).to_contain_text(re.compile(r"\d\.\d{2}"))  # skeleton gone
+        expect(self.total_balance).to_contain_text(re.compile(r"\d\.\d{2}"))
         return to_minor(self.total_balance.inner_text())
 
-    # ---- exchange rates card -----------------------------------------------------
+    # The exchange rates card.
     @property
     def rates_card(self) -> Locator:
         return self.page.get_by_test_id("rates-card")
 
+    # The rates shown in the rates card, e.g. {"USD": 0.2739, "EUR": 0.2512}.
     def shown_rates(self) -> dict[str, float]:
-        """{to_currency: rate} as displayed, e.g. 'rate-ILS-USD' -> {'USD': 0.2739}."""
         rows = self.rates_card.locator('[data-testid^="rate-"]')
         rows.first.wait_for()
         rates = {}
@@ -98,41 +61,47 @@ class WalletsPage(BasePage):
             rates[to] = float(row.inner_text().replace(",", ""))
         return rates
 
-    # ---- conversion preview ------------------------------------------------------
+    # The conversion preview card.
     @property
     def preview(self) -> Locator:
         return self.page.get_by_test_id("conversion-preview")
 
+    # The amount field of the conversion preview.
     @property
     def preview_amount(self) -> Locator:
         return self.preview.get_by_label("Amount")
 
+    # The converted result of the conversion preview.
     @property
     def preview_result(self) -> Locator:
         return self.preview.get_by_test_id("conversion-result")
 
+    # An error returned by the server for the conversion preview.
     @property
     def preview_server_error(self) -> Locator:
         return self.preview.get_by_role("alert")
 
+    # The button that swaps the "From" and "To" currencies.
     @property
     def swap_button(self) -> Locator:
         return self.preview.get_by_role("button", name="Swap")
 
+    # The (from, to) currencies selected in the conversion preview.
     def preview_currencies(self) -> tuple[str, str]:
-        """(from, to) currently selected in the preview."""
         frm = self.preview.get_by_label("From").inner_text()
         to = self.preview.get_by_label("To").inner_text()
         return CURRENCY_CODE.search(frm).group(1), CURRENCY_CODE.search(to).group(1)
 
+    # Types an amount into the conversion preview.
     def set_preview_amount(self, amount: str):
         self.preview_amount.fill(amount)
         return self
 
+    # Waits until the preview shows exactly this result (given in minor units).
     def expect_preview_result(self, minor: int):
-        """Retry until the (debounced, server-computed) result shows exactly `minor`."""
         exact = re.compile(rf"(?<![\d,]){re.escape(format_minor(minor))}$")
         expect(self.preview_result).to_have_text(exact)
 
+    # Checks that the preview shows no result ("—").
     def expect_no_preview_result(self):
         expect(self.preview_result).to_have_text("—")
