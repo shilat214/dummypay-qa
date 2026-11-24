@@ -129,6 +129,7 @@ def dashboard_page(user1_page):
     return DashboardPage(user1_page).open()
 
 
+# Wallets page, opened as user 1.
 @pytest.fixture
 def wallets_page(user1_page):
     return WalletsPage(user1_page).open()
@@ -144,17 +145,17 @@ def history_page(user1_page):
     return HistoryPage(user1_page).open()
 
 
+# Cards page, opened as user 1; test cards are deleted through the API before and after the test.
 @pytest.fixture
 def cards_page(user1_page, api_user1):
-    """Cards page; test cards are deleted through the API before and after the test."""
     api_user1.delete_cards(TEST_CARD_LAST4)
     yield CardsPage(user1_page).open()
     api_user1.delete_cards(TEST_CARD_LAST4)
 
 
+# Bank accounts page, opened as user 1; test accounts are deleted through the API before and after the test.
 @pytest.fixture
 def bank_page(user1_page, api_user1):
-    """Bank accounts page; the test bank's accounts are deleted through the API before and after."""
     api_user1.delete_bank_accounts(BANK_NAME)
     yield BankAccountsPage(user1_page).open()
     api_user1.delete_bank_accounts(BANK_NAME)

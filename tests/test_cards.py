@@ -68,7 +68,6 @@ class TestCardsPositive:
         expect(cards_page.item_by_last4(existing_card["last_four_digits"])).to_have_count(0)
         assert api_user1.cards() == [c for c in before if c["id"] != existing_card["id"]]
 
-
     # While typing, the dialog recognises the card brand and groups the digits.
     @pytest.mark.parametrize(("card", "shown_number"), [
         (VALID_VISA, "4111 1111 1111 1111"),
