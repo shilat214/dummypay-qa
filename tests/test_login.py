@@ -32,7 +32,7 @@ class TestLoginPositive:
         expect(ForgotPasswordPage(login_page.page).send_button).to_be_visible()
 
     def test_create_accaount_link_open_register_page(self, login_page):
-            login_page.forgot_password_link.click()
+            login_page.create_account_link.click()
             expect(login_page.page).to_have_url(re.compile(r"/register"))
 class TestLoginNegative:
     pytestmark = pytest.mark.negative
