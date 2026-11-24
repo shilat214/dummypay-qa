@@ -1,5 +1,3 @@
-import re
-
 from playwright.sync_api import Locator
 
 from pages.base_page import BasePage
@@ -22,7 +20,6 @@ class BankAccountsPage(BasePage):
     # Opens the add-account dialog.
     def open_add_dialog(self):
         self.page.get_by_role("button", name="Add bank account").click()
-        return self
 
     # Fills every field of the add-account dialog.
     def fill_account(self, holder: str, bank: str, country: str, currency: str, identifier: str):
@@ -33,18 +30,16 @@ class BankAccountsPage(BasePage):
         self.dialog.get_by_label("Currency").click()
         self.page.get_by_role("option", name=currency).click()
         self.dialog.get_by_label("IBAN or account number").fill(identifier)
-        return self
 
     # Clicks the dialog's "Add bank account" button.
     def submit(self):
         self.dialog.get_by_role("button", name="Add bank account").click()
-        return self
 
     # Opens the dialog, fills it and submits it.
     def add_account(self, holder: str, bank: str, country: str, currency: str, identifier: str):
         self.open_add_dialog()
         self.fill_account(holder, bank, country, currency, identifier)
-        return self.submit()
+        self.submit()
 
     # The cards of all accounts with this bank name.
     def item_by_bank(self, bank: str) -> Locator:
@@ -61,5 +56,5 @@ class BankAccountsPage(BasePage):
     # Removes the first account with this bank name and confirms.
     def remove_account(self, bank: str):
         item = self.item_by_bank(bank).first
-        item.get_by_role("button", name=re.compile(f"Remove {re.escape(bank)} account")).click()
+        item.get_by_role("button", name=f"Remove {bank} account").click()
         self.page.get_by_role("alertdialog").get_by_role("button", name="Remove").click()

@@ -76,15 +76,18 @@ class WalletsPage(BasePage):
     def preview_result(self) -> Locator:
         return self.preview.get_by_test_id("conversion-result")
 
+    # An error message shown in the conversion preview.
+    def preview_error(self, message: str) -> Locator:
+        return self.preview.get_by_text(message)
+
     # An error returned by the server for the conversion preview.
     @property
     def preview_server_error(self) -> Locator:
         return self.preview.get_by_role("alert")
 
-    # The button that swaps the "From" and "To" currencies.
-    @property
-    def swap_button(self) -> Locator:
-        return self.preview.get_by_role("button", name="Swap")
+    # Swaps the "From" and "To" currencies.
+    def swap(self):
+        self.preview.get_by_role("button", name="Swap").click()
 
     # The (from, to) currencies selected in the conversion preview.
     def preview_currencies(self) -> tuple[str, str]:
@@ -95,7 +98,6 @@ class WalletsPage(BasePage):
     # Types an amount into the conversion preview.
     def set_preview_amount(self, amount: str):
         self.preview_amount.fill(amount)
-        return self
 
     # Waits until the preview shows exactly this result (given in minor units).
     def expect_preview_result(self, minor: int):

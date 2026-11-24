@@ -1,5 +1,3 @@
-import re
-
 from playwright.sync_api import Locator
 
 from pages.base_page import BasePage
@@ -22,12 +20,19 @@ class CardsPage(BasePage):
     # Opens the add-card dialog.
     def open_add_dialog(self):
         self.page.get_by_role("button", name="Add card").click()
-        return self
 
     # The card number field of the add-card dialog.
     @property
     def card_number_input(self) -> Locator:
         return self.dialog.get_by_label("Card number")
+
+    # Types a card number into the add-card dialog.
+    def type_card_number(self, number: str):
+        self.card_number_input.fill(number)
+
+    # The card brand recognised by the add-card dialog (e.g. Visa).
+    def brand(self, name: str) -> Locator:
+        return self.dialog.get_by_text(name, exact=True)
 
     # Fills every field of the add-card dialog.
     def fill_card(self, name: str, number: str, expiry: str, cvv: str):
@@ -35,18 +40,16 @@ class CardsPage(BasePage):
         self.card_number_input.fill(number)
         self.dialog.get_by_label("Expiry (MM/YY)").fill(expiry)
         self.dialog.get_by_label("CVV").fill(cvv)
-        return self
 
     # Clicks the dialog's "Add card" button.
     def submit(self):
         self.dialog.get_by_role("button", name="Add card").click()
-        return self
 
     # Opens the dialog, fills it and submits it.
     def add_card(self, name: str, number: str, expiry: str, cvv: str):
         self.open_add_dialog()
         self.fill_card(name, number, expiry, cvv)
-        return self.submit()
+        self.submit()
 
     # The tiles of all cards ending in these four digits.
     def item_by_last4(self, last4: str) -> Locator:
@@ -59,5 +62,5 @@ class CardsPage(BasePage):
     # Removes the first card ending in these four digits and confirms.
     def remove_card(self, last4: str):
         item = self.item_by_last4(last4).first
-        item.get_by_role("button", name=re.compile(f"Remove card ending in {last4}")).click()
+        item.get_by_role("button", name=f"Remove card ending in {last4}").click()
         self.page.get_by_role("alertdialog").get_by_role("button", name="Remove").click()
