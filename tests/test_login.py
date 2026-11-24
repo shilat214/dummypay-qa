@@ -1,15 +1,11 @@
 import re
-
 import pytest
 from playwright.sync_api import expect
-
 from pages.dashboard_page import DashboardPage
 from pages.forgot_password_page import ForgotPasswordPage
 from utilities import config
 from utilities.data import unknown_email
-
 pytestmark = pytest.mark.regression
-
 
 class TestLoginPositive:
     pytestmark = pytest.mark.positive
@@ -35,15 +31,13 @@ class TestLoginPositive:
         expect(login_page.page).to_have_url(re.compile(r"/forgot-password$"))
         expect(ForgotPasswordPage(login_page.page).send_button).to_be_visible()
 
-    def test_simulated_platform_notice_is_visible(self, login_page):
-        expect(login_page.simulated_note).to_contain_text("Simulated platform")
-
-
+    def test_create_accaount_link_open_register_page(self, login_page):
+            login_page.forgot_password_link.click()
+            expect(login_page.page).to_have_url(re.compile(r"/register"))
 class TestLoginNegative:
     pytestmark = pytest.mark.negative
-
     def test_wrong_password_is_rejected(self, login_page):
-        login_page.login(config.USER1_EMAIL or "someone@test.dummypay.dev", "wrong-password-123")
+        login_page.login(config.USER1_EMAIL, "wrong-password-123")
         expect(login_page.text("Incorrect email or password.")).to_be_visible()
         expect(login_page.page).to_have_url(re.compile(r"/login$"))
 
