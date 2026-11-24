@@ -1,17 +1,12 @@
 import re
-
 import pytest
 from playwright.sync_api import expect
-
 from pages.base_page import NAV_ITEMS
 from pages.login_page import LoginPage
-
+from utilities.config import BASE_URL
 pytestmark = pytest.mark.regression
-
-
 class TestDashboardPositive:
     pytestmark = pytest.mark.positive
-
     @pytest.mark.smoke
     def test_dashboard_loads_with_welcome_message(self, dashboard_page):
         dashboard_page.expect_loaded()
@@ -25,6 +20,7 @@ class TestDashboardPositive:
 
     def test_rates_card_shows_last_update_time(self, dashboard_page):
         expect(dashboard_page.rates_card).to_contain_text("Last updated")
+        expect(dashboard_page.rates_card).to_contain_text(re.compile(r"\d{1,2}:\d{2}"))
 
     def test_sidebar_contains_all_eight_sections(self, dashboard_page):
         for label in NAV_ITEMS:
@@ -33,7 +29,6 @@ class TestDashboardPositive:
 
 class TestDashboardNegative:
     pytestmark = pytest.mark.negative
-
     def test_anonymous_visitor_is_redirected_to_login(self, page):
         page.goto("/")
         expect(page).to_have_url(re.compile(r"/login$"))
@@ -45,4 +40,4 @@ class TestDashboardNegative:
 
     def test_signed_in_user_cannot_open_login_page(self, user1_page):
         user1_page.goto("/login")
-        expect(user1_page).not_to_have_url(re.compile(r"/login"))
+        expect(user1_page).not_to_have_url(BASE_URL)

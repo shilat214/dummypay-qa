@@ -1,8 +1,5 @@
 from playwright.sync_api import Locator
-
 from pages.base_page import BasePage
-
-
 class ForgotPasswordPage(BasePage):
     path = "/forgot-password"
 
@@ -17,7 +14,11 @@ class ForgotPasswordPage(BasePage):
     @property
     def confirmation(self) -> Locator:
         return self.page.get_by_test_id("reset-sent")
-
+    
+    @property
+    def Back_to_sign_in(self) -> Locator:
+        return self.page.get_by_role("link", name="Back to sign in")
+    
     def expect_loaded(self):
         self.send_button.wait_for()
 
@@ -36,3 +37,12 @@ class ForgotPasswordPage(BasePage):
 
         self.page.route("**/auth/v1/recover**", handler)
         return tracker
+    def mock_and_count_reset_requests(self):
+        requests = {"count": 0}
+
+        def handler(route):
+            requests["count"] += 1
+            route.fulfill(status=200, content_type="application/json", body="{}")
+
+        self.page.route("**/auth/v1/recover**", handler)
+        return requests
