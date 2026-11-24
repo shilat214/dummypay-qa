@@ -1,4 +1,3 @@
-"""Static test data."""
 import uuid
 
 # Card given in the assignment: 4111 1111 1111 1111  03/30  737
@@ -29,6 +28,6 @@ US_ACCOUNT = {"country": "United States", "currency": "USD",
               "identifier": US_ACCOUNT_NUMBER, "masked": "•••• 6789"}
 
 
+# An email address that is certainly not a registered user.
 def unknown_email() -> str:
-    """An address that is certainly not a registered user."""
     return f"nobody-{uuid.uuid4().hex[:10]}@test.dummypay.dev"
