@@ -36,14 +36,14 @@ class TestWalletsPositive:
         frm, to = wallets_page.preview_currencies()
         wallets_page.set_preview_amount("100")
 
-        wallets_page.swap_button.click()
+        wallets_page.swap()
 
         assert wallets_page.preview_currencies() == (to, frm)
         wallets_page.expect_preview_result(api_user1.preview(10000, to, frm)["receiving_amount_minor"])
 
     # Every exchange rate shown equals the server's current rate.
     def test_rates_match_server(self, wallets_page, api_user1):
-        base = api_user1.profile()["preferred_currency"]
+        base = api_user1.preferred_currency()
         rates = api_user1.cross_rates(base)
 
         shown = wallets_page.shown_rates()
@@ -67,7 +67,7 @@ class TestWalletsNegative:
     def test_invalid_amount(self, wallets_page, amount, error):
         wallets_page.set_preview_amount(amount)
 
-        expect(wallets_page.preview.get_by_text(error)).to_be_visible()
+        expect(wallets_page.preview_error(error)).to_be_visible()
         wallets_page.expect_no_preview_result()
 
     # An amount above the 1,000,000.00 limit is rejected by the server.

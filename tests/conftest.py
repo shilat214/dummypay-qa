@@ -21,17 +21,13 @@ from utilities.data import BANK_NAME, TEST_CARD_LAST4
 VIEWPORT = {"width": 1920, "height": 1080}
 
 
+# Gives the plain `page` fixture (login and sign-out tests) the same large window.
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
-    """Same large viewport for the plain `page` fixture (login / sign-out tests)."""
     return {**browser_context_args, "viewport": VIEWPORT}
-# --------------------------------------------------------------------------- #
-# Authentication: log in ONCE per user per session through the UI, store the
-# session (storage_state) and reuse it. DummyPay rate-limits sign-ins, so tests
-# must not log in repeatedly. Sign-up is intentionally NOT automated.
-# --------------------------------------------------------------------------- #
 
 
+# Signs in once through the login page and saves the session to .auth/<name>.json.
 def _login_and_store(browser, base_url, email, password, name):
     if not email or not password:
         pytest.skip(f"Credentials for {name} are not configured (.env / CI secrets).")
@@ -46,16 +42,19 @@ def _login_and_store(browser, base_url, email, password, name):
     return str(path)
 
 
+# The saved session of user 1 (signs in once per run).
 @pytest.fixture(scope="session")
 def user1_state(browser, base_url):
     return _login_and_store(browser, base_url, config.USER1_EMAIL, config.USER1_PASSWORD, "user1")
 
 
+# The saved session of user 2 (signs in once per run).
 @pytest.fixture(scope="session")
 def user2_state(browser, base_url):
     return _login_and_store(browser, base_url, config.USER2_EMAIL, config.USER2_PASSWORD, "user2")
 
 
+# A new browser tab that is already signed in as user 1; closed after the test.
 @pytest.fixture
 def user1_page(browser, base_url, user1_state):
     context = browser.new_context(base_url=base_url, storage_state=user1_state, viewport=VIEWPORT)
@@ -64,6 +63,7 @@ def user1_page(browser, base_url, user1_state):
     context.close()
 
 
+# A new browser tab that is already signed in as user 2; closed after the test.
 @pytest.fixture
 def user2_page(browser, base_url, user2_state):
     context = browser.new_context(base_url=base_url, storage_state=user2_state, viewport=VIEWPORT)
@@ -72,11 +72,13 @@ def user2_page(browser, base_url, user2_state):
     context.close()
 
 
+# The e-mail of user 1.
 @pytest.fixture(scope="session")
 def user1_email():
     return config.USER1_EMAIL
 
 
+# The e-mail of user 2.
 @pytest.fixture(scope="session")
 def user2_email():
     if not config.USER2_EMAIL:
@@ -84,14 +86,8 @@ def user2_email():
     return config.USER2_EMAIL
 
 
-# --------------------------------------------------------------------------- #
-# API clients (one sign-in per user per session - Supabase rate-limits sign-ins)
-# --------------------------------------------------------------------------- #
-
-
+# An API client signed in as this user.
 def _api_for(email, password, name):
-    if not config.ANON_KEY:
-        pytest.skip("DUMMYPAY_ANON_KEY is not configured (.env / CI secrets).")
     if not email or not password:
         pytest.skip(f"Credentials for {name} are not configured (.env / CI secrets).")
     api = DummyPayApi()
@@ -99,31 +95,31 @@ def _api_for(email, password, name):
     return api
 
 
+# The API client of user 1 (signs in once per run).
 @pytest.fixture(scope="session")
 def api_user1():
     return _api_for(config.USER1_EMAIL, config.USER1_PASSWORD, "user1")
 
 
+# The API client of user 2 (signs in once per run).
 @pytest.fixture(scope="session")
 def api_user2():
     return _api_for(config.USER2_EMAIL, config.USER2_PASSWORD, "user2")
 
 
-# --------------------------------------------------------------------------- #
-# Page-object fixtures
-# --------------------------------------------------------------------------- #
-
-
+# Login page, opened without a session.
 @pytest.fixture
 def login_page(page):
     return LoginPage(page).open()
 
 
+# Forgot-password page object (not opened yet).
 @pytest.fixture
 def forgot_password_page(page):
     return ForgotPasswordPage(page)
 
 
+# Dashboard, opened as user 1.
 @pytest.fixture
 def dashboard_page(user1_page):
     return DashboardPage(user1_page).open()
@@ -135,11 +131,13 @@ def wallets_page(user1_page):
     return WalletsPage(user1_page).open()
 
 
+# Send Money page, opened as user 1.
 @pytest.fixture
 def send_page(user1_page):
     return SendMoneyPage(user1_page).open()
 
 
+# Transaction History page, opened as user 1.
 @pytest.fixture
 def history_page(user1_page):
     return HistoryPage(user1_page).open()
@@ -161,27 +159,25 @@ def bank_page(user1_page, api_user1):
     api_user1.delete_bank_accounts(BANK_NAME)
 
 
+# Notifications page, opened as user 1.
 @pytest.fixture
 def notifications_page(user1_page):
     return NotificationsPage(user1_page).open()
 
 
+# Reset-password page, opened as user 1 so the new-password form is shown.
 @pytest.fixture
 def reset_password_page(user1_page):
-    """Reset page opened with a signed-in session, so the new-password form is shown."""
     return ResetPasswordPage(user1_page).open()
 
 
+# Profile & Settings page, opened as user 1.
 @pytest.fixture
 def settings_page(user1_page):
     return SettingsPage(user1_page).open()
 
 
-# --------------------------------------------------------------------------- #
-# HTML report: attach a screenshot to every failed test
-# --------------------------------------------------------------------------- #
-
-
+# Adds a screenshot of the page to the HTML report when a test fails.
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
@@ -195,5 +191,5 @@ def pytest_runtest_makereport(item, call):
     try:
         shot = base64.b64encode(page.screenshot()).decode()
         report.extras = getattr(report, "extras", []) + [html.extras.png(shot, "Screenshot at failure")]
-    except Exception:  # page/context may already be closed
+    except Exception:
         pass

@@ -77,10 +77,10 @@ class TestCardsPositive:
     def test_brand_is_recognised_while_typing(self, cards_page, card, shown_number):
         cards_page.open_add_dialog()
 
-        cards_page.card_number_input.fill(card["number"])
+        cards_page.type_card_number(card["number"])
 
         expect(cards_page.card_number_input).to_have_value(shown_number)
-        expect(cards_page.dialog.get_by_text(card["brand"], exact=True)).to_be_visible()
+        expect(cards_page.brand(card["brand"])).to_be_visible()
 
 
 class TestCardsNegative:

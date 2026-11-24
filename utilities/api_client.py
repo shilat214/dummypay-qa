@@ -22,26 +22,16 @@ class _CustomCAAdapter(HTTPAdapter):
         return super().init_poolmanager(*args, **kwargs)
 
 
-# Raised when the server answers with an error; shows the status code and the server's message.
-class ApiError(Exception):
-
-    # Keeps the status code and the response body of the failed request.
-    def __init__(self, status: int, body):
-        self.status = status
-        self.body = body
-        super().__init__(f"{status}: {body}")
-
-
 class DummyPayApi:
 
     # Opens an HTTP session that sends the public API key with every request.
-    def __init__(self, base_url: str = config.SUPABASE_URL, anon_key: str = config.ANON_KEY):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self):
+        self.base_url = config.SUPABASE_URL
         self.http = requests.Session()
         ca_bundle = os.getenv("REQUESTS_CA_BUNDLE")
-        if ca_bundle and hasattr(ssl, "VERIFY_X509_STRICT"):
+        if ca_bundle:
             self.http.mount("https://", _CustomCAAdapter(ca_bundle))
-        self.http.headers["apikey"] = anon_key
+        self.http.headers["apikey"] = config.ANON_KEY
 
     # Signs in and sends the user's token with every following request.
     def sign_in(self, email: str, password: str):
@@ -70,22 +60,21 @@ class DummyPayApi:
         r = self.http.delete(f"{self.base_url}/rest/v1/{table}", params=query, timeout=30)
         return self._check(r)
 
-    # Returns the response body, or raises ApiError if the server answered with an error.
+    # Returns the response body, or fails with the server's message if the server answered with an error.
     @staticmethod
     def _check(r: requests.Response):
-        body = r.json() if r.content else None
         if not r.ok:
-            raise ApiError(r.status_code, body)
-        return body
+            raise RuntimeError(f"{r.status_code}: {r.text}")
+        return r.json() if r.content else None
 
     # The user's wallets as {currency: balance in minor units}.
     def wallets(self) -> dict[str, int]:
         rows = self.select("wallets", select="currency,balance_minor")
         return {w["currency"]: w["balance_minor"] for w in rows}
 
-    # The user's profile (email, display name, preferred currency).
-    def profile(self) -> dict:
-        return self.select("profiles", select="id,email,display_name,preferred_currency")[0]
+    # The user's preferred currency (e.g. ILS).
+    def preferred_currency(self) -> str:
+        return self.select("profiles", select="preferred_currency")[0]["preferred_currency"]
 
     # The total balance the server calculates for the user.
     def wallet_summary(self) -> dict:
