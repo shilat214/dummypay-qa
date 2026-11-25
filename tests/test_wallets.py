@@ -1,11 +1,13 @@
 import pytest
 from playwright.sync_api import expect
 
+from tests.conftest import api_user1, wallets_page
 from utilities.money import ui_amount_to_minor
 
 pytestmark = pytest.mark.regression
 
 ALL_CURRENCIES = {"ILS", "USD", "EUR", "GBP"}
+SWAP_AMOUNT = "100"
 
 
 class TestWalletsPositive:
@@ -34,12 +36,13 @@ class TestWalletsPositive:
     # Swap reverses the currencies, and the result is recalculated in the new direction.
     def test_swap_reverses_the_conversion(self, wallets_page, api_user1):
         frm, to = wallets_page.preview_currencies()
-        wallets_page.set_preview_amount("100")
+        wallets_page.set_preview_amount(SWAP_AMOUNT)
 
         wallets_page.swap()
 
         assert wallets_page.preview_currencies() == (to, frm)
-        wallets_page.expect_preview_result(api_user1.preview(10000, to, frm)["receiving_amount_minor"])
+        expected = api_user1.preview(ui_amount_to_minor(SWAP_AMOUNT), to, frm)["receiving_amount_minor"]
+        wallets_page.expect_preview_result(expected)
 
     # Every exchange rate shown equals the server's current rate.
     def test_rates_match_server(self, wallets_page, api_user1):
