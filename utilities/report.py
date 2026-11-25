@@ -8,8 +8,8 @@ import pytest
 
 from utilities.config import BASE_URL
 
-COLORS = {"passed": "#2E9E5B", "failed": "#D64545", "error": "#8E2C2C", "skipped": "#E0A800"}
-LABELS = {"passed": "Passed", "failed": "Failed", "error": "Errors", "skipped": "Skipped"}
+COLORS = {"passed": "#2E9E5B", "failed": "#D64545", "error": "#8E2C2C", "xfailed": "#7C5CBF", "skipped": "#E0A800"}
+LABELS = {"passed": "Passed", "failed": "Failed", "error": "Errors", "xfailed": "Known bugs (xfail)", "skipped": "Skipped"}
 results = defaultdict(Counter)
 started = time.time()
 
@@ -79,7 +79,10 @@ def pytest_runtest_makereport(item, call):
 # Counts the result of every test per page.
 def pytest_runtest_logreport(report):
     page = page_of(report.nodeid)
-    if report.when == "call":
+    if hasattr(report, "wasxfail"):
+        if report.when == "call" or report.skipped:
+            results[page]["xfailed" if report.skipped else "failed"] += 1
+    elif report.when == "call":
         results[page][report.outcome] += 1
     elif report.when == "setup" and report.outcome != "passed":
         results[page]["error" if report.failed else "skipped"] += 1
@@ -133,13 +136,13 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
         (sum(totals.values()), "Tests", "#1F4E9E"), (totals["passed"], "Passed", COLORS["passed"]),
         (totals["failed"] + totals["error"], "Failed", COLORS["failed"]), (f"{minutes}:{seconds:02d}", "Duration", "#1F2937")))
     rows = "".join(f'<tr><td>{html.escape(page)}</td><td>{sum(c.values())}</td><td>{c["passed"]}</td>'
-                   f'<td>{c["failed"] + c["error"]}</td><td>{c["skipped"]}</td><td>{bar(c)}</td></tr>'
+                   f'<td>{c["failed"] + c["error"]}</td><td>{c["xfailed"]}</td><td>{c["skipped"]}</td><td>{bar(c)}</td></tr>'
                    for page, c in sorted(results.items()))
     prefix.append(STYLE + f"""
       <div class="dp-cards">
         <div class="dp-card dp-donut">{donut(totals)}<div class="dp-legend">{legend}</div></div>
         <div class="dp-card"><div class="dp-kpis">{kpis}</div></div>
         <div class="dp-card"><table class="dp-pages">
-          <tr><th>Page</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Skipped</th><th></th></tr>{rows}
+          <tr><th>Page</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Known bugs</th><th>Skipped</th><th></th></tr>{rows}
         </table></div>
       </div>""")

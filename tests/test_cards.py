@@ -1,5 +1,5 @@
 from datetime import date
-
+import re
 import pytest
 from playwright.sync_api import expect
 
@@ -85,6 +85,17 @@ class TestCardsPositive:
 
 class TestCardsNegative:
     pytestmark = pytest.mark.negative
+
+
+     # Adding a card that is already saved is rejected (known bug: the site saves it again).
+    @pytest.mark.xfail(reason="Known bug: the same card can be added twice", strict=True)
+    def test_same_card_twice(self, cards_page, api_user1, existing_card):
+        before = api_user1.cards()
+
+        cards_page.add_card(HOLDER, VALID_VISA["number"], VALID_VISA["expiry"], VALID_VISA["cvv"])
+
+        expect(cards_page.error(re.compile("already", re.IGNORECASE))).to_be_visible()
+        assert api_user1.cards() == before
 
     # An invalid card number is rejected.
     @pytest.mark.parametrize(("number", "message"), [
