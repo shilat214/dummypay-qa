@@ -35,6 +35,10 @@ class BankAccountsPage(BasePage):
     def submit(self):
         self.dialog.get_by_role("button", name="Add bank account").click()
 
+    # Closes the add-account dialog with one of its buttons ("Cancel" or the "Close" X).
+    def close_dialog(self, button: str):
+        self.dialog.get_by_role("button", name=button, exact=True).click()
+
     # Opens the dialog, fills it and submits it.
     def add_account(self, holder: str, bank: str, country: str, currency: str, identifier: str):
         self.open_add_dialog()

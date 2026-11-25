@@ -45,6 +45,10 @@ class CardsPage(BasePage):
     def submit(self):
         self.dialog.get_by_role("button", name="Add card").click()
 
+    # Closes the add-card dialog with one of its buttons ("Cancel" or the "Close" X).
+    def close_dialog(self, button: str):
+        self.dialog.get_by_role("button", name=button, exact=True).click()
+
     # Opens the dialog, fills it and submits it.
     def add_card(self, name: str, number: str, expiry: str, cvv: str):
         self.open_add_dialog()
