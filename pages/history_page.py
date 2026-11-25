@@ -1,5 +1,6 @@
-from playwright.sync_api import Locator
 
+import re
+from playwright.sync_api import Locator, expect
 from pages.base_page import BasePage
 
 
@@ -28,14 +29,49 @@ class HistoryPage(BasePage):
         return self.page.get_by_label("Type")
 
     @property
+    def currency_filter(self) -> Locator:
+        return self.page.get_by_label("Currency")
+
+    @property
     def clear_button(self) -> Locator:
         return self.page.get_by_role("button", name="Clear")
 
     @property
     def no_match(self) -> Locator:
-        return self.page.get_by_text("No matching transactions")
+        return self.page.get_by_text("No matching transactions" ,exact=True)
+
+    @property
+    def transaction_count(self) -> Locator:
+        return self.page.get_by_text(
+            re.compile(r"^\d+ transactions?$")
+        )
+
+    @property
+    def next_button(self) -> Locator:
+        return self.page.get_by_role("button", name="Next")
 
     def choose_type(self, label: str):
         self.type_filter.click()
-        self.page.get_by_role("option", name=label).click()
+        self.page.get_by_role("option", name=label, exact=True).click()
         return self
+
+    def choose_currency(self, currency: str):
+        self.currency_filter.click()
+        self.page.get_by_role("option", name=currency, exact=True).click()
+        return self
+
+    def count_all_transactions(self):
+        total = 0
+        while True:
+           total += self.rows.count()
+           if self.next_button.count() == 0 or self.next_button.is_disabled():
+            break
+           first_row = self.rows.first.inner_text()
+           self.next_button.click()
+           expect(self.rows.first).not_to_have_text(first_row)
+        return total
+    def open_first_transaction(self):
+       row = self.rows.first
+       amount = row.locator("span").last.inner_text()
+       row.click()
+       return amount.lstrip("−-")
