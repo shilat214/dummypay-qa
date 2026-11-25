@@ -79,12 +79,12 @@ class WalletsPage(BasePage):
     # An error message shown in the conversion preview.
     def preview_error(self, message: str) -> Locator:
         return self.preview.get_by_text(message)
-
-    # An error returned by the server for the conversion preview.
+    
+    # All error messages shown in the conversion preview (from the browser or from the server).
     @property
-    def preview_server_error(self) -> Locator:
+    def preview_errors(self) -> Locator:
         return self.preview.get_by_role("alert")
-
+    
     # Swaps the "From" and "To" currencies.
     def swap(self):
         self.preview.get_by_role("button", name="Swap").click()
