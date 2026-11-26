@@ -3,7 +3,7 @@ import re
 import pytest
 from playwright.sync_api import expect
 
-from utilities.data import (EXPIRED_EXPIRY, INVALID_LUHN_NUMBER, VALID_AMEX,
+from utilities.data import (EXPIRED_EXPIRY, INVALID_LUHN_NUMBER, TEN_VISA_NUMBERS, VALID_AMEX,
                             VALID_MASTERCARD, VALID_VISA)
 
 pytestmark = pytest.mark.regression
@@ -128,3 +128,12 @@ class TestCardsNegative:
     ], ids=["visa-2-digits", "amex-3-digits"])
     def test_invalid_cvv(self, cards_page, api_user1, card, cvv, message):
         _expect_rejected(cards_page, api_user1, HOLDER, card["number"], "1230", cvv, message)
+
+    # With 10 cards stored (created through the API), an 11th is rejected.
+    def test_eleventh_card(self, cards_page, api_user1):
+        for number in TEN_VISA_NUMBERS[len(api_user1.cards()):]:
+            api_user1.add_card(HOLDER, number, "03/30", VALID_VISA["cvv"])
+        cards_page.open()
+
+        _expect_rejected(cards_page, api_user1, HOLDER, VALID_VISA["number"], VALID_VISA["expiry"], VALID_VISA["cvv"],
+                         "You can add up to 10 cards. Remove one to add another.")
