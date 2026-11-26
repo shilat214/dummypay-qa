@@ -1,11 +1,13 @@
 import pytest
 from playwright.sync_api import expect
 
+from tests.conftest import api_user1, wallets_page
 from utilities.money import ui_amount_to_minor
 
 pytestmark = pytest.mark.regression
 
 ALL_CURRENCIES = {"ILS", "USD", "EUR", "GBP"}
+SWAP_AMOUNT = "100"
 
 
 class TestWalletsPositive:
@@ -34,12 +36,13 @@ class TestWalletsPositive:
     # Swap reverses the currencies, and the result is recalculated in the new direction.
     def test_swap_reverses_the_conversion(self, wallets_page, api_user1):
         frm, to = wallets_page.preview_currencies()
-        wallets_page.set_preview_amount("100")
+        wallets_page.set_preview_amount(SWAP_AMOUNT)
 
         wallets_page.swap()
 
         assert wallets_page.preview_currencies() == (to, frm)
-        wallets_page.expect_preview_result(api_user1.preview(10000, to, frm)["receiving_amount_minor"])
+        expected = api_user1.preview(ui_amount_to_minor(SWAP_AMOUNT), to, frm)["receiving_amount_minor"]
+        wallets_page.expect_preview_result(expected)
 
     # Every exchange rate shown equals the server's current rate.
     def test_rates_match_server(self, wallets_page, api_user1):
@@ -55,6 +58,13 @@ class TestWalletsPositive:
 
 class TestWalletsNegative:
     pytestmark = pytest.mark.negative
+
+    # A huge amount shows the same limit message as any amount above 1,000,000.00 (known bug: it shows "Amount is too large.").
+    @pytest.mark.xfail(reason='Known bug: a huge amount shows "Amount is too large." instead of the allowed range', strict=True, raises=AssertionError)
+    def test_huge_amount_shows_the_limit_message(self, wallets_page):
+        wallets_page.set_preview_amount("100000000000000")
+        
+        expect(wallets_page.preview_errors).to_have_text(["Enter an amount between 0.01 and 1,000,000.00."])
 
     # An invalid amount in the conversion preview shows an error and no result.
     @pytest.mark.parametrize(("amount", "error"), [
@@ -74,7 +84,7 @@ class TestWalletsNegative:
     def test_amount_above_limit(self, wallets_page):
         wallets_page.set_preview_amount("1000000.01")
 
-        expect(wallets_page.preview_server_error).to_have_text("Enter an amount between 0.01 and 1,000,000.00.")
+        expect(wallets_page.preview_errors).to_have_text("Enter an amount between 0.01 and 1,000,000.00.")
         wallets_page.expect_no_preview_result()
 
     # When the user already has a wallet in every currency, "Add wallet" is disabled.

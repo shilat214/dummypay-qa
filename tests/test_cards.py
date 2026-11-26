@@ -1,5 +1,5 @@
 from datetime import date
-
+import re
 import pytest
 from playwright.sync_api import expect
 
@@ -82,9 +82,27 @@ class TestCardsPositive:
         expect(cards_page.card_number_input).to_have_value(shown_number)
         expect(cards_page.brand(card["brand"])).to_be_visible()
 
+    # Closing the add dialog with Cancel or X saves nothing.
+    @pytest.mark.parametrize("button", ["Cancel", "Close"], ids=["cancel", "x"])
+    def test_closing_the_dialog_saves_nothing(self, cards_page, api_user1, button):
+        before = api_user1.cards()
+        cards_page.open_add_dialog()
+        cards_page.fill_card(HOLDER, VALID_VISA["number"], VALID_VISA["expiry"], VALID_VISA["cvv"])
+
+        cards_page.close_dialog(button)
+
+        expect(cards_page.dialog).to_be_hidden()
+        assert api_user1.cards() == before
+
 
 class TestCardsNegative:
     pytestmark = pytest.mark.negative
+
+    # Adding a card that is already saved is rejected (known bug: the site saves it again).
+    @pytest.mark.xfail(reason="Known bug: the same card can be added twice", strict=True, raises=AssertionError)
+    def test_same_card_twice(self, cards_page, api_user1, existing_card):
+        _expect_rejected(cards_page, api_user1, HOLDER, VALID_VISA["number"], VALID_VISA["expiry"], VALID_VISA["cvv"],
+                         re.compile("already", re.IGNORECASE))
 
     # An invalid card number is rejected.
     @pytest.mark.parametrize(("number", "message"), [

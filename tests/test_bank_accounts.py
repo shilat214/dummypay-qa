@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from playwright.sync_api import expect
 
@@ -26,6 +28,7 @@ def _expect_rejected(bank_page, api, holder, bank, country, currency, identifier
 class TestBankAccountsPositive:
     pytestmark = pytest.mark.positive
 
+    
     # The page shows exactly the accounts stored on the server.
     @pytest.mark.smoke
     def test_page_shows_all_server_accounts(self, bank_page, api_user1, existing_account):
@@ -61,11 +64,29 @@ class TestBankAccountsPositive:
         expect(bank_page.toast("Bank account removed.")).to_be_visible()
         expect(bank_page.item_by_bank(BANK_NAME)).to_have_count(0)
         assert api_user1.bank_accounts() == [a for a in before if a["id"] != existing_account["id"]]
+        
+    # Closing the add dialog with Cancel or X saves nothing.
+    @pytest.mark.parametrize("button", ["Cancel", "Close"], ids=["cancel", "x"])
+    def test_closing_the_dialog_saves_nothing(self, bank_page, api_user1, button):
+        before = api_user1.bank_accounts()
+        bank_page.open_add_dialog()
+        bank_page.fill_account(BANK_HOLDER, BANK_NAME, "United States", "USD", US_ACCOUNT_NUMBER)
 
+        bank_page.close_dialog(button)
+
+        expect(bank_page.dialog).to_be_hidden()
+        assert api_user1.bank_accounts() == before
+        
 
 class TestBankAccountsNegative:
     pytestmark = pytest.mark.negative
-
+    
+    # Adding an account that is already saved is rejected (known bug: the site saves it again).
+    @pytest.mark.xfail(reason="Known bug: the same bank account can be added twice", strict=True, raises=AssertionError)
+    def test_same_account_twice(self, bank_page, api_user1, existing_account):
+        _expect_rejected(bank_page, api_user1, BANK_HOLDER, BANK_NAME, "United States", "USD", US_ACCOUNT_NUMBER,
+                         re.compile("already", re.IGNORECASE))
+        
     # An invalid IBAN or account number is rejected.
     @pytest.mark.parametrize(("country", "currency", "identifier", "message"), [
         ("United Kingdom", "GBP", IBAN_GB_BAD_CHECKSUM, "IBAN is not valid (checksum failed)."),
