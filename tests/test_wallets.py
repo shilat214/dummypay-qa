@@ -86,6 +86,15 @@ class TestWalletsNegative:
 
         assert to_minor(wallets_page.preview_result.inner_text()) == expected
 
+    # The "To" list does not offer the currency chosen in "From" (known bug: it does, so a currency can be converted to itself).
+    @pytest.mark.xfail(reason='Known bug: the "To" list offers the "From" currency', strict=True, raises=AssertionError)
+    def test_to_list_excludes_the_from_currency(self, wallets_page):
+        frm, _ = wallets_page.preview_currencies()
+
+        wallets_page.open_to_list()
+
+        expect(wallets_page.currency_option(frm)).to_have_count(0)
+
     # An invalid amount in the conversion preview shows an error and no result.
     @pytest.mark.parametrize(("amount", "error"), [
         ("abc", "Enter a valid positive number."),
@@ -93,18 +102,12 @@ class TestWalletsNegative:
         ("1e3", "Enter a valid positive number."),
         ("0", "Amount must be greater than zero."),
         ("1.234", "Use at most 2 decimal places."),
-    ], ids=["letters", "negative", "scientific", "zero", "three-decimals"])
+        ("1000000.01", "Enter an amount between 0.01 and 1,000,000.00."),
+    ], ids=["letters", "negative", "scientific", "zero", "three-decimals", "above-limit"])
     def test_invalid_amount(self, wallets_page, amount, error):
         wallets_page.set_preview_amount(amount)
 
         expect(wallets_page.preview_error(error)).to_be_visible()
-        wallets_page.expect_no_preview_result()
-
-    # An amount above the 1,000,000.00 limit is rejected by the server.
-    def test_amount_above_limit(self, wallets_page):
-        wallets_page.set_preview_amount("1000000.01")
-
-        expect(wallets_page.preview_errors).to_have_text("Enter an amount between 0.01 and 1,000,000.00.")
         wallets_page.expect_no_preview_result()
 
     # When the user already has a wallet in every currency, "Add wallet" is disabled.

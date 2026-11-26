@@ -7,6 +7,12 @@ VALID_MASTERCARD = {"name": "QA Tester", "number": "5555555555554444", "expiry":
                     "cvv": "123", "brand": "Mastercard", "last4": "4444", "shown_expiry": "Exp 12/30"}
 VALID_AMEX = {"name": "QA Tester", "number": "378282246310005", "expiry": "1230",
               "cvv": "1234", "brand": "American Express", "last4": "0005", "shown_expiry": "Exp 12/30"}
+
+# Ten different valid Visa numbers that end in 1111, so the test cleanup deletes them.
+TEN_VISA_NUMBERS = ["4000000000061111", "4000000000141111", "4000000000221111", "4000000000301111",
+                    "4000000000481111", "4000000000551111", "4000000000631111", "4000000000711111",
+                    "4000000000891111", "4000000000971111"]
+
 TEST_CARD_LAST4 = ["1111", "4444", "0005"]
 
 INVALID_LUHN_NUMBER = "4242424242424241"

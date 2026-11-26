@@ -21,9 +21,14 @@ class BankAccountsPage(BasePage):
     def open_add_dialog(self):
         self.page.get_by_role("button", name="Add bank account").click()
 
+    # The "Account holder name" field of the add dialog.
+    @property
+    def holder_input(self) -> Locator:
+        return self.dialog.get_by_label("Account holder name")
+
     # Fills every field of the add-account dialog.
     def fill_account(self, holder: str, bank: str, country: str, currency: str, identifier: str):
-        self.dialog.get_by_label("Account holder name").fill(holder)
+        self.holder_input.fill(holder)
         self.dialog.get_by_label("Bank name").fill(bank)
         self.dialog.get_by_label("Country").click()
         self.page.get_by_role("option", name=country).click()
