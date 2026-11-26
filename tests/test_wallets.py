@@ -1,9 +1,10 @@
+import random
+import re
 import pytest
 from playwright.sync_api import expect
 
 from tests.conftest import api_user1, wallets_page
-from utilities.money import ui_amount_to_minor
-
+from utilities.money import to_minor, ui_amount_to_minor
 pytestmark = pytest.mark.regression
 
 ALL_CURRENCIES = {"ILS", "USD", "EUR", "GBP"}
@@ -72,6 +73,18 @@ class TestWalletsNegative:
         wallets_page.set_preview_amount("100000000000000")
 
         expect(wallets_page.preview_errors).to_have_text(["Enter an amount between 0.01 and 1,000,000.00."])
+
+    # Right after a new amount is typed, only its correct result is shown (known bug: the previous amount's result is shown).
+    @pytest.mark.xfail(reason="Known bug: right after a new amount is typed, the previous amount's result is shown", strict=True, raises=AssertionError)
+    def test_only_the_correct_result_is_shown(self, wallets_page, api_user1):
+        frm, to = wallets_page.preview_currencies()
+        expect(wallets_page.preview_result).to_have_text(re.compile(r"\d"))
+        new_amount = str(random.choice([random.randint(1, 99), random.randint(101, 1_000_000)]))
+        expected = api_user1.preview(ui_amount_to_minor(new_amount), frm, to)["receiving_amount_minor"]
+
+        wallets_page.set_preview_amount(new_amount)
+
+        assert to_minor(wallets_page.preview_result.inner_text()) == expected
 
     # An invalid amount in the conversion preview shows an error and no result.
     @pytest.mark.parametrize(("amount", "error"), [
