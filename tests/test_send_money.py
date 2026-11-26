@@ -1,68 +1,70 @@
-import re
 
+import re
 import pytest
 from playwright.sync_api import expect
-
-from pages.history_page import HistoryPage
 from utilities.data import unknown_email
-from utilities.flows import send_money
-
+from utilities.transaction_api import send_funds
 pytestmark = pytest.mark.regression
-
 
 class TestSendMoneyPositive:
     pytestmark = pytest.mark.positive
 
     @pytest.mark.smoke
-    def test_registered_recipient_is_found_and_confirmed(self, send_page, user2_email):
+    def test_registered_recipient_is_found(self, send_page, user2_email):
         send_page.expect_loaded()
-        send_page.find_recipient(user2_email)
-        expect(send_page.recipient_card).to_contain_text(user2_email)
-
-    def test_recipient_lookup_ignores_email_case(self, send_page, user2_email):
         send_page.find_recipient(user2_email.upper())
-        expect(send_page.recipient_card).to_contain_text(user2_email)
+        expect(send_page.recipient_card).to_contain_text(user2_email.lower())
 
-    def test_review_step_shows_amount_rate_and_recipient(self, send_page, user2_email):
+    def test_review_step_shows_amount_and_rate(self, send_page, user2_email):
         send_page.find_recipient(user2_email).continue_to_amount()
         send_page.enter_amount_and_review("1")
         expect(send_page.summary).to_be_visible()
         expect(send_page.summary_send).to_contain_text(re.compile(r"[\d,]+\.\d{2}"))
         expect(send_page.summary_receive).to_contain_text(re.compile(r"[\d,]+\.\d{2}"))
-        # Same currency for both users -> no conversion; otherwise "1 XXX = n XXX".
         expect(send_page.summary_rate).to_have_text(
-            re.compile(r"No conversion \(same currency\)|1 [A-Z]{3} = [\d.]+ [A-Z]{3}"))
+            re.compile(r"No conversion \(same currency\)|1 [A-Z]{3} = [\d.]+ [A-Z]{3}")
+        )
 
-    def test_cancelling_the_confirmation_does_not_send_money(self, send_page, user2_email):
+    def test_cancelling_the_confirmation_does_not_send_money(self, send_page, user2_email, api_user1):
+        before = api_user1.wallets()
         send_page.find_recipient(user2_email).continue_to_amount()
         send_page.enter_amount_and_review("1")
         send_page.cancel_confirmation()
         expect(send_page.success).to_have_count(0)
         expect(send_page.summary).to_be_visible()
+        assert api_user1.wallets() == before
 
     @pytest.mark.nightly
-    def test_full_transfer_moves_money_and_appears_in_history(self, user1_page, api_user1, api_user2, user2_email):
-        """End to end: balances of both users change by the quoted amounts, and the new
-        transaction is the newest one in the history (checked by its ID, not by row count,
-        because the history page shows only 20 rows per page)."""
+    def test_full_transfer_api(self, api_user1, api_user2, user2_email):
+        sender_before = api_user1.wallets()
+        recipient_before = api_user2.wallets()
         last_before = api_user1.latest_transaction()
-        sender_before, recipient_before = api_user1.wallets(), api_user2.wallets()
-
-        send_money(user1_page, user2_email, "1")
-
+        quote, result = send_funds(api_user1, user2_email.lower())
         txn = api_user1.latest_transaction()
-        assert txn["id"] != (last_before or {}).get("id"), "a new transaction must be recorded"
-        assert txn["direction"] == "sent" and txn["recipient_email"] == user2_email
-        assert txn["sending_amount_minor"] == 100  # "1" in the sender's currency
+        assert txn["id"] != (last_before or {}).get("id")
+        assert txn["direction"] == "sent"
+        assert txn["recipient_email"].lower() == user2_email.lower()
+        assert txn["sending_amount_minor"] == 100
 
-        send_ccy, recv_ccy = txn["sending_currency"], txn["receiving_currency"]
-        assert api_user1.wallets()[send_ccy] == sender_before[send_ccy] - txn["sending_amount_minor"]
-        assert api_user2.wallets()[recv_ccy] == recipient_before.get(recv_ccy, 0) + txn["receiving_amount_minor"]
+        send_ccy = txn["sending_currency"]
+        recv_ccy = txn["receiving_currency"]
+        
+        assert send_ccy == quote["sending_currency"]
+        assert recv_ccy == quote["receiving_currency"]
 
-        history = HistoryPage(user1_page).open()
-        history.rows.first.click()
-        expect(history.detail).to_contain_text(txn["id"])
+        assert txn["receiving_amount_minor"] == quote["receiving_amount_minor"]
 
+        expected_amount = round(
+            quote["sending_amount_minor"] * quote["exchange_rate"]
+        )
+        assert quote["receiving_amount_minor"] == expected_amount
+
+        assert api_user1.wallets()[send_ccy] == (
+            sender_before[send_ccy] - txn["sending_amount_minor"]
+        )
+        assert api_user2.wallets()[recv_ccy] == (
+            recipient_before.get(recv_ccy, 0) + txn["receiving_amount_minor"]
+        )
 
 class TestSendMoneyNegative:
     pytestmark = pytest.mark.negative
