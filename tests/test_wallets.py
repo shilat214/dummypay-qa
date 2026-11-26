@@ -23,6 +23,13 @@ class TestWalletsPositive:
             assert wallets_page.balance_minor(currency) == balance
         assert wallets_page.total_minor() == api_user1.wallet_summary()["total_minor"]
 
+    # Only the wallet of the user's preferred currency is marked "Preferred".
+    def test_preferred_wallet_is_marked(self, wallets_page, api_user1):
+        preferred = api_user1.preferred_currency()
+
+        expect(wallets_page.wallet_card(preferred)).to_contain_text("Preferred")
+        expect(wallets_page.wallet_cards.filter(has_text="Preferred")).to_have_count(1)
+
     # The conversion preview shows the same result as the server calculates.
     @pytest.mark.parametrize("amount", ["1", "100", "1,234.56", "1000000"])
     def test_conversion_preview_matches_server(self, wallets_page, api_user1, amount):
