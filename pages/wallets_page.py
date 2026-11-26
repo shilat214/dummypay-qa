@@ -107,3 +107,4 @@ class WalletsPage(BasePage):
     # Checks that the preview shows no result ("—").
     def expect_no_preview_result(self):
         expect(self.preview_result).to_have_text("—")
+

@@ -1,9 +1,10 @@
+import random
+import re
 import pytest
 from playwright.sync_api import expect
 
 from tests.conftest import api_user1, wallets_page
-from utilities.money import ui_amount_to_minor
-
+from utilities.money import to_minor, ui_amount_to_minor
 pytestmark = pytest.mark.regression
 
 ALL_CURRENCIES = {"ILS", "USD", "EUR", "GBP"}
@@ -22,6 +23,13 @@ class TestWalletsPositive:
         for currency, balance in wallets.items():
             assert wallets_page.balance_minor(currency) == balance
         assert wallets_page.total_minor() == api_user1.wallet_summary()["total_minor"]
+
+    # Only the wallet of the user's preferred currency is marked "Preferred".
+    def test_preferred_wallet_is_marked(self, wallets_page, api_user1):
+        preferred = api_user1.preferred_currency()
+
+        expect(wallets_page.wallet_card(preferred)).to_contain_text("Preferred")
+        expect(wallets_page.wallet_cards.filter(has_text="Preferred")).to_have_count(1)
 
     # The conversion preview shows the same result as the server calculates.
     @pytest.mark.parametrize("amount", ["1", "100", "1,234.56", "1000000"])
@@ -63,8 +71,20 @@ class TestWalletsNegative:
     @pytest.mark.xfail(reason='Known bug: a huge amount shows "Amount is too large." instead of the allowed range', strict=True, raises=AssertionError)
     def test_huge_amount_shows_the_limit_message(self, wallets_page):
         wallets_page.set_preview_amount("100000000000000")
-        
+
         expect(wallets_page.preview_errors).to_have_text(["Enter an amount between 0.01 and 1,000,000.00."])
+
+    # Right after a new amount is typed, only its correct result is shown (known bug: the previous amount's result is shown).
+    @pytest.mark.xfail(reason="Known bug: right after a new amount is typed, the previous amount's result is shown", strict=True, raises=AssertionError)
+    def test_only_the_correct_result_is_shown(self, wallets_page, api_user1):
+        frm, to = wallets_page.preview_currencies()
+        expect(wallets_page.preview_result).to_have_text(re.compile(r"\d"))
+        new_amount = str(random.choice([random.randint(1, 99), random.randint(101, 1_000_000)]))
+        expected = api_user1.preview(ui_amount_to_minor(new_amount), frm, to)["receiving_amount_minor"]
+
+        wallets_page.set_preview_amount(new_amount)
+
+        assert to_minor(wallets_page.preview_result.inner_text()) == expected
 
     # An invalid amount in the conversion preview shows an error and no result.
     @pytest.mark.parametrize(("amount", "error"), [
