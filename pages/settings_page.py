@@ -1,5 +1,5 @@
-from playwright.sync_api import Locator
 
+from playwright.sync_api import Locator
 from pages.base_page import BasePage
 
 
@@ -35,3 +35,18 @@ class SettingsPage(BasePage):
         self.display_name_input.fill(name)
         self.save_button.click()
         return self
+
+    def current_currency(self):
+        return self.currency_select.inner_text().split()[0]
+
+    def different_currency(self):
+        return "USD" if self.current_currency() != "USD" else "ILS"
+
+    def change_currency(self, currency):
+        self.currency_select.click()
+        self.page.get_by_role("option", name=currency).click()
+        self.change_button.click()
+
+    def rename(self, name):
+        self.display_name_input.fill(name)
+        self.save_button.click()

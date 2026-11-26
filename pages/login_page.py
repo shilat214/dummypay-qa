@@ -25,6 +25,9 @@ class LoginPage(BasePage):
     @property
     def forgot_password_link(self) -> Locator:
         return self.page.get_by_role("link", name="Forgot password?")
+    @property
+    def create_account_link(self) -> Locator:
+        return self.page.get_by_role("link", name="Create an account")
 
     @property
     def simulated_note(self) -> Locator:

@@ -14,7 +14,7 @@ from pages.send_money_page import SendMoneyPage
 from pages.settings_page import SettingsPage
 from pages.wallets_page import WalletsPage
 from utilities import config
-from utilities.api_client import DummyPayApi
+from utilities.api_base import DummyPayApi
 from utilities.data import BANK_NAME, TEST_CARD_LAST4
 
 
