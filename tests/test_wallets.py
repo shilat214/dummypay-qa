@@ -62,8 +62,8 @@ class TestWalletsNegative:
     # A huge amount shows the same limit message as any amount above 1,000,000.00 (known bug: it shows "Amount is too large.").
     @pytest.mark.xfail(reason='Known bug: a huge amount shows "Amount is too large." instead of the allowed range', strict=True, raises=AssertionError)
     def test_huge_amount_shows_the_limit_message(self, wallets_page):
-        wallets_page.set_preview_amount("100000000000000000")
-
+        wallets_page.set_preview_amount("100000000000000")
+        
         expect(wallets_page.preview_errors).to_have_text(["Enter an amount between 0.01 and 1,000,000.00."])
 
     # An invalid amount in the conversion preview shows an error and no result.
