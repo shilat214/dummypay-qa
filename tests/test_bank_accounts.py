@@ -64,7 +64,7 @@ class TestBankAccountsPositive:
         expect(bank_page.toast("Bank account removed.")).to_be_visible()
         expect(bank_page.item_by_bank(BANK_NAME)).to_have_count(0)
         assert api_user1.bank_accounts() == [a for a in before if a["id"] != existing_account["id"]]
-        
+
     # Closing the add dialog with Cancel or X saves nothing.
     @pytest.mark.parametrize("button", ["Cancel", "Close"], ids=["cancel", "x"])
     def test_closing_the_dialog_saves_nothing(self, bank_page, api_user1, button):
@@ -86,6 +86,19 @@ class TestBankAccountsNegative:
     def test_same_account_twice(self, bank_page, api_user1, existing_account):
         _expect_rejected(bank_page, api_user1, BANK_HOLDER, BANK_NAME, "United States", "USD", US_ACCOUNT_NUMBER,
                          re.compile("already", re.IGNORECASE))
+
+    # Fixing a wrong field removes its error message (known bug: the message stays until the form is sent again).
+    @pytest.mark.xfail(reason="Known bug: the error message stays after the field is fixed, until the form is sent again", strict=True, raises=AssertionError)
+    def test_error_disappears_after_fixing_the_field(self, bank_page):
+        bank_page.open_add_dialog()
+        bank_page.fill_account("QA Tester 2", BANK_NAME, "United States", "USD", US_ACCOUNT_NUMBER)
+        bank_page.submit()
+        error = bank_page.error("Account holder name may only contain letters, spaces, and . ' -")
+        expect(error).to_be_visible()
+
+        bank_page.holder_input.fill(BANK_HOLDER)
+
+        expect(error).to_be_hidden()
         
     # An invalid IBAN or account number is rejected.
     @pytest.mark.parametrize(("country", "currency", "identifier", "message"), [

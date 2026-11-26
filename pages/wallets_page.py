@@ -108,3 +108,11 @@ class WalletsPage(BasePage):
     def expect_no_preview_result(self):
         expect(self.preview_result).to_have_text("—")
 
+    # Opens the "To" currency list of the conversion preview.
+    def open_to_list(self):
+        self.preview.get_by_label("To").click()
+
+    # One currency in an open currency list.
+    def currency_option(self, code: str) -> Locator:
+        return self.page.get_by_role("option", name=code, exact=True)
+
